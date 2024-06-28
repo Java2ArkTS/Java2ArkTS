@@ -1,0 +1,15 @@
+class MoneyCounter {
+
+    private int moneyAvailable = 2000;
+
+    public synchronized void useMoney(String userName, int numberOfMoney) {
+        if (numberOfMoney <= moneyAvailable) {
+            moneyAvailable -= numberOfMoney;
+            System.out.println(userName + " used " + numberOfMoney + " money. Money left: " + moneyAvailable);
+        }
+    }
+
+    public synchronized int getMoneyAvailable() {
+        return moneyAvailable;
+    }
+}
