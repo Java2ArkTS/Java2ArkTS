@@ -1,0 +1,12 @@
+public class UseMoneyTest {
+
+    public static void main(String[] args) {
+        MoneyCounter moneyCounter = new MoneyCounter();
+        Thread thread1 = new Thread(new BuyBook(moneyCounter, "User1", 5));
+        Thread thread2 = new Thread(new BuyFood(moneyCounter, "User2", 10));
+        Thread thread3 = new Thread(new BuyTicket(moneyCounter, "User3", 20));
+        thread1.start();
+        thread2.start();
+        thread3.start();
+    }
+}

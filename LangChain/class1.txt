@@ -1,0 +1,21 @@
+class BuyBook implements Runnable {
+
+    private MoneyCounter moneyCounter;
+
+    private String userName;
+
+    private int price;
+
+    public BuyBook(MoneyCounter moneyCounter, String userName, int price) {
+        this.moneyCounter = moneyCounter;
+        this.userName = userName;
+        this.price = price;
+    }
+
+    @Override
+    public void run() {
+        while (true) {
+            moneyCounter.useMoney(userName, price);
+        }
+    }
+}
