@@ -5,9 +5,6 @@ import os
 from io import BytesIO
 import subprocess
 
-os.environ["OPENAI_API_BASE"] = 'https://api.xiaoai.plus/v1'
-os.environ["OPENAI_API_KEY"] = 'sk-8IdpOAGoECRFlaQR0656C1D88d374bEfA3B48bDaBbC21d95'
-
 st.title('LLM-Based Java Concurrent Program to ArkTS Converter')
 
 filename = "ThreadBridge.ets"
@@ -28,8 +25,8 @@ if uploaded_file is not None:
 
 
 def run_jar_with_input():
-    command = 'java -jar target/maven-demo.jar'
-    os.system(command)
+    result = subprocess.run(['java', '-jar', 'target/maven-demo.jar'], capture_output=True, text=True)
+    return result.stdout
 
 
 def deleteZhu(mycode):
@@ -47,8 +44,8 @@ def deleteZhu(mycode):
 
 
 if st.button('run'):
-    run_jar_with_input()
-    st.write("use ast success")
+    ast_result = run_jar_with_input()
+    st.write(ast_result)
     file_path = 'tmp.txt'
     with open(file_path, 'r') as file:
         code = file.read()
@@ -61,13 +58,14 @@ if st.button('run'):
         code = ''
         with open('classnum.txt', 'r') as file:
             class_num = int(file.read())
-        refer = ("import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread } from "
+        refer = ("import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from "
                  "'./ThreadBridge';\n\n") + code
         for i in range(class_num):
             class_file_path = 'class'+str(i)+'.txt'
             with open(class_file_path, 'r') as file:
                 class_code = file.read()
             class_flag_path = 'class_flag' + str(i) + '.txt'
+            # st.code(class_code)
             with open(class_flag_path, 'r') as file:
                 class_flag = int(file.read())
                 print(class_flag)
@@ -83,27 +81,34 @@ if st.button('run'):
 
     if flag / 2 == 1:
         code = """
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread } from './ThreadBridge';
+import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
 
 export function sharedWash(threadId: number){
   let archetype = Thread.runnableList[threadId];
   archetype.run();
 }
+
         """ + code
     code = ToTs().getClean(code)
     code = deleteZhu(code)
-    print(code)
-    with open('Output.ts', 'w') as file:
-        file.write(code)
-    st.code(code)
+    last_code = code
+    error_flag = 0
     for _ in range(3):
         process = subprocess.Popen(['tsc', 'Output.ts'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         stdout, stderr = process.communicate()
         if len(stdout.decode()) == 0:
+            error_flag = 0
             break
         # st.code(stdout.decode())
+        error_flag = 1
         code = deleteZhu(ToTs().getFix(code, stdout.decode()))
         # st.code(code)
+    if error_flag == 1:
+        code = last_code
+    print(code)
+    with open('Output.ts', 'w') as file:
+        file.write(code)
+    st.code(code)
 
     st.code("convert finish")
     filename = "Index.ets"
