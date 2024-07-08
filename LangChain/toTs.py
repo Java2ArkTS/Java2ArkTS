@@ -6,7 +6,7 @@ import streamlit as st
 
 class ToTs:
     def __init__(self):
-        self.model = ChatOpenAI(temperature=0)
+        self.model = ChatOpenAI(temperature=0, model="gpt-4o")
 
         self.template_start = """
         请将user提供的Java代码格式化，并转换成typescript代码。

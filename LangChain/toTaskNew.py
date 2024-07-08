@@ -120,12 +120,14 @@ class ToTaskNew:
         {code}
         你是一个十分擅长Java的程序员。
         请将上述Java类做如下更改：找到被synchronized关键字标记的代码块，将synchronized标记删除。在其第一行加上
-        SynStart(synchronized关键字目前为止的数量, synArray); 
-        在其最后加上SynEnd(synchronized关键字目前为止的数量, synArray); 例如
+        SynStart(synchronized关键字包裹的对象['synArray']); 
+        在其最后加上SynEnd(synchronized关键字包裹的对象['synArray']); 
+        中间如果有wait()函数，则改成wait(synchronized关键字包裹的对象['synArray'])
+        中间如果有notify()函数，则改成notify(synchronized关键字包裹的对象['synArray'])例如
         {input}
         改成
         {output}
-        请注意SynStart(i, synArray),SynEnd(i, synArray)应该在代码块内.
+        请注意SynStart(synchronized关键字包裹的对象['synArray']),SynEnd(synchronized关键字包裹的对象['synArray'])应该在代码块内.
         
         *********************************************
         代码的上下文如下，禁止额外import：
@@ -138,14 +140,14 @@ class ToTaskNew:
         """)
         chain = prompt | self.model | self.output_parser
         return chain.invoke({"code": code, "input": """
-        synchronized(对象){
-            代码块体
+        synchronized(obj){
+            obj.wait();
         }
         """, "output": """
         {
-            SynStart(1, synArray);
-            代码块体
-            SynEnd(1, synArray);
+            SynStart(obj['synArray']);
+            wait(obj['synArray']);
+            SynEnd(obj['synArray']);
         }
         """, "refer": self.refer})
 
@@ -207,7 +209,7 @@ class ToTaskNew:
         现有函数getValues(code: any)，
         作用是传入类型为any的成员变量,返回其对应的值。
         只输出代码，不要输出其他分析。
-        
+
         例如
         console.log(this.s+"ok");
         改为
@@ -224,7 +226,7 @@ class ToTaskNew:
         this.son.begin(this.a, this.b);
         改为：
         getValues(this.son.begin(getValues(this.a), getValues(this.b)));
-        
+
         还有函数setValues(obj: any, tmp: any)，作用是传入类型为any的成员变量obj，将其赋值为对应类型的变量tmp。
         使用setValues改变成员变量被赋值的方式，例如
         this.a = 1;
@@ -234,12 +236,12 @@ class ToTaskNew:
         this.a = this.b + 1;
         改为
         setValues(this.a, getValues(this.b) + 1);
-        
+
         *********************************************
         代码的上下文如下，禁止额外import：
         {refer}
         *********************************************
-        
+
         不要额外编写函数。不要对非成员函数做这些。
         输出直接输出更改后的类，不要有其他东西。
         只输出代码！！！只输出代码！！！只输出代码！！！
@@ -259,14 +261,7 @@ class ToTaskNew:
         在用户传入的类中添加两个成员变量：
         public synArray : any = getSyc();
         public sharedType: string = "object";
-                
-        不要额外编写函数，若已存在上述成员变量，将其替换为上述变量。
-        例如：
-        public synArray : any = [];
-        public sharedType: string = "object";
-        改为：
-        public synArray : any = getSyc();
-        public sharedType: string = "object";
+        
         输出直接输出更改后的类，请去除开头和结尾的```标记。不要输出其他信息。
         只输出代码！！！只输出代码！！！只输出代码！！！
         """
@@ -307,7 +302,3 @@ class ToTaskNew:
         # st.code(code)
         return code
 
-
-# with open('../tests/Syn.java', 'r') as file:
-#     mycode = file.read()
-#     print(ToTaskNew().changeSetGet(mycode))
