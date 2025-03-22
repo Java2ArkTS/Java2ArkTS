@@ -7,11 +7,9 @@ import streamlit as st
 def deleteZhu(mycode):
     if mycode[0] == '`':
         lines = mycode.splitlines()
-        # 使用切片操作去掉第一行和最后一行
         lines = lines[1:-1]
         if lines[-1][0] == '`':
             lines = lines[0:-1]
-        # 将处理后的列表重新拼接为字符串
         result_string = "\n".join(lines)
         return result_string
     else:
@@ -28,18 +26,20 @@ class ToTaskNew:
         self.refer = refer
 
         self.template_changeFunc = """
-        你是一个十分精通Java的程序员。
-        请将user提供的Java类中标记在方法上的synchronized关键字改为标记在代码块的形式，括号中的对象为"this"例如：
-        {input}
-        改为
-        {output}
-        
-        *********************************************
-        代码的上下文如下，不要额外import：
-        {refer}
-        *********************************************
-        
-        输出直接输出更改后的类，不要有其他东西。
+        You are a highly proficient Java programmer.
+Please modify the Java class provided by the user by changing the synchronized keyword from method-level to block-level, using "this" as the synchronization object.
+
+For example:
+Input:
+{input}
+
+Output:
+{output}
+
+Context of the code (Do not add extra imports):
+{refer}
+
+Directly output the modified class without any additional text.
         """
         self.prompt_changeFunc = ChatPromptTemplate.from_messages([
             ("system", self.template_changeFunc),
@@ -48,95 +48,110 @@ class ToTaskNew:
 
     def getMessage(self):
         template = """
-        你是一个十分擅长Java的程序员。
-        请分析用户传入的Java代码中每个类的构造方法，指导用户如何构建每个类的实例并给出示范。
-        请输出的尽量少。
+        You are a highly skilled Java programmer.
+Analyze the constructors in the provided Java code and guide the user on how to instantiate each class, providing concise examples.
+
+Keep the output as brief as possible.
         """
         prompt = ChatPromptTemplate.from_messages([
             ("system", template),
             ("user", "{code}")
         ])
         chain = prompt | self.model | self.output_parser
-        # st.code("开始分析成员变量")
         return chain.invoke({"code": self.origin_code})
 
     def addChu(self, code, message):
         template = """
-        你是一个十分擅长Java的程序员。
-        请参考用户提供的代码的上下文，将用户传入的类中未初始化的成员变量初始化，请从用户提供的代码的上下文中找到成员变量的构造函数中可能需要参数。
-        若已经初始化，不做任何更改。
-        请注意，输出中除了转换后的类不要有任何东西。
-        例如：
-        public int a;
-        改成：
-        public int a = 0;
-        再例如：
-        public Test test;
-        改成：
-        public Test test = new Test(1);
-        
-        ********************************************
-        生成类的实例的指导如下：
-        {message}
+        ou are a highly skilled Java programmer.
 
-        *********************************************
-        代码的上下文如下，禁止额外import：
-        {refer}
-        *********************************************
-        只输出代码！！！只输出代码！！！只输出代码！！！
+Based on the provided code context, initialize uninitialized member variables in the given class. If initialization requires parameters, infer them from the provided context.
+
+If a variable is already initialized, do not modify it.
+
+Example:
+
+public int a;
+→
+
+public int a = 0;
+
+Another example:
+
+public Test test;
+→
+
+public Test test = new Test(1);
+
+Instance creation guidelines:
+{message}
+
+Code context (Do not add extra imports):
+{refer}
+
+Output only the modified class. No extra text. Output only the code!
         """
         prompt = ChatPromptTemplate.from_messages([
             ("system", template),
             ("user", "{code}")
         ])
         chain = prompt | self.model | self.output_parser
-        # st.code("开始初始化成员变量")
         return chain.invoke({"code": code, "refer": self.refer, "message": message})
 
     def getStart(self, code):
         template = """
-        你是一个十分擅长Java与typescript的程序员。
-        请将user提供的Java类转换成typescript代码。
-        不要新增任何的类和函数，因为代码上下文已经给出
-        请注意，输出中除了转换后的类不要有任何东西。
-        
-        *********************************************
-        代码的上下文如下，禁止额外import：
-        {refer}
-        *********************************************
-        只输出代码！！！只输出代码！！！只输出代码！！！
+        You are highly skilled in both Java and TypeScript.
+
+Convert the provided Java class into TypeScript without adding any new classes or functions, as the code context has already been provided.
+
+Code context (Do not add extra imports):
+{refer}
+
+Output only the converted class. No extra text. Output only the code!
         """
         prompt = ChatPromptTemplate.from_messages([
             ("system", template),
             ("user", "{code}")
         ])
         chain = prompt | self.model | self.output_parser
-        # st.code("开始类的转换")
         return chain.invoke({"code": code, "refer": self.refer})
 
     def transSyc(self, code):
-        # st.code("开始转换synchronized关键字")
         prompt = ChatPromptTemplate.from_template("""
-        {code}
-        你是一个十分擅长Java的程序员。
-        请将上述Java类做如下更改：找到被synchronized关键字标记的代码块，将synchronized标记删除。在其第一行加上
-        SynStart(synchronized关键字包裹的对象['synArray']); 
-        在其最后加上SynEnd(synchronized关键字包裹的对象['synArray']); 
-        中间如果有wait()函数，则改成wait(synchronized关键字包裹的对象['synArray'])
-        中间如果有notify()函数，则改成notify(synchronized关键字包裹的对象['synArray'])例如
-        {input}
-        改成
-        {output}
-        请注意SynStart(synchronized关键字包裹的对象['synArray']),SynEnd(synchronized关键字包裹的对象['synArray'])应该在代码块内.
-        
-        *********************************************
-        代码的上下文如下，禁止额外import：
-        {refer}
-        *********************************************
-        
-        所有函数都在import中给出，不需要额外编写。
-        输出直接输出更改后的类，不要有其他东西。
-        只输出代码！！！只输出代码！！！只输出代码！！！
+{code}
+
+You are a highly skilled Java programmer.
+
+Modify the given Java class as follows:
+
+Find code blocks marked with the synchronized keyword and remove the synchronized modifier.
+
+At the beginning of the block, add:
+
+SynStart(synchronized_object['synArray']);
+At the end of the block, add:
+
+SynEnd(synchronized_object['synArray']);
+Replace wait() calls with:
+
+wait(synchronized_object['synArray']);
+Replace notify() calls with:
+
+notify(synchronized_object['synArray']);
+Example:
+Input:
+{input}
+
+Output:
+{output}
+
+Ensure that SynStart(synchronized_object['synArray']) and SynEnd(synchronized_object['synArray']) are inside the code block.
+
+Code context (Do not add extra imports):
+{refer}
+
+All required functions are already included in the imports—do not add extra code.
+
+Output only the modified class. No extra text. Output only the code!
         """)
         chain = prompt | self.model | self.output_parser
         return chain.invoke({"code": code, "input": """
@@ -153,98 +168,139 @@ class ToTaskNew:
 
     def changeFuncSyn(self, code):
         chain = self.prompt_changeFunc | self.model | self.output_parser
-        # st.code("开始转换函数上的synchronized关键字")
         return chain.invoke({"code": code, "input": """
-        public synchronized 返回值类型 函数名(){
-            函数体
+        public synchronized ReturnType methodName(){
+            // method body
         }
         """, "output": """
-        public 返回值类型 函数名(){
+        public ReturnType methodName(){
             synchronized(this){
-                函数体
+                // method body
             }
         }
         """, "refer": self.refer})
 
     def changeDing(self, code):
         template = """
-        你是一个十分擅长typescript的程序员，请将用户输入的类用以下函数更改。
-        现在有一个函数getClass(type: string, inClass ?: any)，
-        作用是传入类型与值，返回一个any类型的对象。
-        接收user输入的类，使用getClass改变成员变量的定义，例如：
-        private a : number = 0;
-        改成：
-        private a : any = getClass('number', 0);
-        再例如
-        public s : string = 'test';
-        改成：
-        public s : any = getClass('string', 'test');
-        再例如：
-        public Test test = new Test();
-        改成：
-        public test : Test = getClass('Test', new Test());
-        
-        注意，请只在成员变量定义处改变，避免更改成员方法以及成员方法中的变量。
-        
-        *********************************************
-        代码的上下文如下，禁止额外import：
-        {refer}
-        *********************************************
-        
-        不要额外编写函数。
-        输出直接输出更改后的类，不要有其他东西。
-        只输出代码！！！只输出代码！！！只输出代码！！！
+        You are a highly skilled TypeScript programmer.
+
+Modify the user's input class using the following function:
+
+getClass(type: string, inClass?: any): any
+This function takes a type and a value, returning an object of type any.
+
+Modification Rules:
+
+Update member variable definitions using getClass, while keeping their initial values.
+
+Do not modify methods or variables inside methods.
+
+Examples:
+Input:
+
+private a: number = 0;
+Output:
+
+private a: any = getClass('number', 0);
+Input:
+
+public s: string = 'test';
+Output:
+
+public s: any = getClass('string', 'test');
+Input:
+
+public test: Test = new Test();
+Output:
+
+public test: Test = getClass('Test', new Test());
+Code context (Do not add extra imports):
+{refer}
+
+Do not write additional functions. Output only the modified class. No extra text. Output only the code!
         """
         prompt = ChatPromptTemplate.from_messages([
             ("system", template),
             ("user", "{code}")
         ])
         chain = prompt | self.model | self.output_parser
-        # st.code("开始改变成员变量定义")
         return chain.invoke({"code": code, "refer": self.refer})
 
     def changeSetGet(self, code):
         template = """
-        你是一个十分擅长typescript的程序员，请将用户输入的类用以下函数更改。
-        现有函数getValues(code: any)，
-        作用是传入类型为any的成员变量,返回其对应的值。
-        只输出代码，不要输出其他分析。
+        You are a highly skilled TypeScript programmer.
 
-        例如
-        console.log(this.s+"ok");
-        改为
-        console.log(getValues(this.s)+"ok");
-        例如：
-        a = this.test.getNum();
-        改为：
-        a = getValues(this.test.getNum());
-        再例如：
-        this.son.run();
-        改为：
-        getValues(this.son.run());
-        再例如：
-        this.son.begin(this.a, this.b);
-        改为：
-        getValues(this.son.begin(getValues(this.a), getValues(this.b)));
+Modify the user's input class using the following functions:
 
-        还有函数setValues(obj: any, tmp: any)，作用是传入类型为any的成员变量obj，将其赋值为对应类型的变量tmp。
-        使用setValues改变成员变量被赋值的方式，例如
-        this.a = 1;
-        改成
-        setValues(a, 1);
-        请注意，对于等号前后都有成员变量的赋值语句，例如
-        this.a = this.b + 1;
-        改为
-        setValues(this.a, getValues(this.b) + 1);
+getValues(code: any): any
+Takes a variable of type any and returns its corresponding value.
 
-        *********************************************
-        代码的上下文如下，禁止额外import：
-        {refer}
-        *********************************************
+Apply getValues to all relevant expressions involving member variables.
 
-        不要额外编写函数。不要对非成员函数做这些。
-        输出直接输出更改后的类，不要有其他东西。
-        只输出代码！！！只输出代码！！！只输出代码！！！
+setValues(obj: any, tmp: any): void
+Takes a member variable obj of type any and assigns it a corresponding value tmp.
+
+Use setValues for assignments to member variables.
+
+Modification Rules:
+Apply getValues for:
+
+Member variables used in expressions.
+
+Function arguments involving member variables.
+
+Apply setValues for:
+
+Assignments to member variables.
+
+Do not modify:
+
+Non-member variables.
+
+Function definitions.
+
+Examples:
+Input:
+
+console.log(this.s + "ok");
+Output:
+
+console.log(getValues(this.s) + "ok");
+Input:
+
+a = this.test.getNum();
+Output:
+
+a = getValues(this.test.getNum());
+Input:
+
+this.son.run();
+Output:
+
+getValues(this.son.run());
+Input:
+
+this.son.begin(this.a, this.b);
+Output:
+
+getValues(this.son.begin(getValues(this.a), getValues(this.b)));
+Input:
+
+this.a = 1;
+Output:
+
+setValues(this.a, 1);
+Input:
+
+this.a = this.b + 1;
+Output:
+
+setValues(this.a, getValues(this.b) + 1);
+Code Context (Do Not Add Extra Imports):
+{refer}
+
+Do not write additional functions. Do not modify non-member functions.
+Output only the modified class—no extra text!
         """
         prompt = ChatPromptTemplate.from_messages([
             ("system", template),
@@ -256,47 +312,44 @@ class ToTaskNew:
 
     def addCheng(self, code):
         template = """
-        只输出代码，不要输出其他分析。
-        你是一个十分擅长typescript的程序员，
-        在用户传入的类中添加两个成员变量：
-        public synArray : any = getSyc();
-        public sharedType: string = "object";
-        
-        输出直接输出更改后的类，请去除开头和结尾的```标记。不要输出其他信息。
-        只输出代码！！！只输出代码！！！只输出代码！！！
+        Output only the modified class—no additional text or analysis.
+
+You are a highly skilled TypeScript programmer.
+
+Modify the user's provided class by adding the following two member variables:
+
+public synArray: any = getSyc();
+public sharedType: string = "object";
+Ensure that:
+
+The variables are added as class members.
+
+The output contains only the modified class—no extra text, no analysis, and no markdown formatting (```).
         """
         prompt = ChatPromptTemplate.from_messages([
             ("system", template),
             ("user", "{code}")
         ])
         chain = prompt | self.model | self.output_parser
-        # st.code("开始添加成员变量")
         return chain.invoke({"code": code})
 
     def run(self, code):
         if self.flag % 2 == 1:
             st.write("start analysing code")
             message = self.getMessage()
-            # st.code(message)
             st.write("start initializing")
             code = deleteZhu(self.addChu(code, message))
-            # st.code(code)
         if int(self.flag / 2) == 1:
             st.write("start dealing with synchronized")
             code = deleteZhu(self.changeFuncSyn(code))
-            # st.code(code)
             code = deleteZhu(self.transSyc(code))
-            # st.code(code)
         st.write("start converting to TS")
         code = deleteZhu(self.getStart(code))
-        # st.code(code)
         st.write("start using set and get")
         code = deleteZhu(self.changeSetGet(code))
-        # st.code(code)
         if self.flag % 2 == 1:
             st.write("start changing variables")
             code = deleteZhu(self.changeDing(code))
-            # st.code(code)
         st.write("start adding variables")
         code = deleteZhu(self.addCheng(code))
         # st.code(code)
