@@ -35,11 +35,7 @@ further improvement and optimization.
 First you need to install LangChain and its package of openai
 
 ```
-pip install langchain
-```
-
-```
-pip install langchain-openai
+pip install -r requirements.txt
 ```
 
 Set environment variables `OPENAI_API_KEY` to your api_key of openai.
@@ -48,15 +44,8 @@ To run the AST, you need to install Java 17.
 
 To perform compilation check, you need to install tsc.
 
-Install `streamlit` library.
-
 ```
-pip install streamlit
-```
-
-Go to LangChain directory，Enter on the command line.
-
-```
+cd LangChain
 streamlit run start.py
 ```
 

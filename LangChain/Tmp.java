@@ -1,85 +1,40 @@
-class MoneyCounter {
-    private int moneyAvailable = 2000;
-
-    public synchronized void useMoney(String userName, int numberOfMoney) {
-        if (numberOfMoney <= moneyAvailable) {
-            moneyAvailable -= numberOfMoney;
-            System.out.println(userName + " used " + numberOfMoney + " money. Money left: " + moneyAvailable);
-        }
-    }
-
-    public synchronized int getMoneyAvailable() {
-        return moneyAvailable;
-    }
-}
-
-class BuyBook implements Runnable {
-    private MoneyCounter moneyCounter;
-    private String userName;
-    private int price;
-
-    public BuyBook(MoneyCounter moneyCounter, String userName, int price) {
-        this.moneyCounter = moneyCounter;
-        this.userName = userName;
-        this.price = price;
-    }
-
-    @Override
-    public void run() {
-        while(true) {
-            moneyCounter.useMoney(userName, price);
-        }
-    }
-}
-
-class BuyFood implements Runnable {
-    private MoneyCounter moneyCounter;
-    private String userName;
-    private int price;
-
-    public BuyFood(MoneyCounter moneyCounter, String userName, int price) {
-        this.moneyCounter = moneyCounter;
-        this.userName = userName;
-        this.price = price;
-    }
-
-    @Override
-    public void run() {
-        while(true) {
-            moneyCounter.useMoney(userName, price);
-        }
-    }
-}
-
-class BuyTicket implements Runnable {
-    private MoneyCounter moneyCounter;
-    private String userName;
-    private int price;
-
-    public BuyTicket(MoneyCounter moneyCounter, String userName, int price) {
-        this.moneyCounter = moneyCounter;
-        this.userName = userName;
-        this.price = price;
-    }
-
-    @Override
-    public void run() {
-        while(true) {
-            moneyCounter.useMoney(userName, price);
-        }
-    }
-}
-
-public class UseMoneyTest {
-    public static void main(String[] args) {
-        MoneyCounter moneyCounter = new MoneyCounter();
-
-        Thread thread1 = new Thread(new BuyBook(moneyCounter, "User1", 5));
-        Thread thread2 = new Thread(new BuyFood(moneyCounter, "User2", 10));
-        Thread thread3 = new Thread(new BuyTicket(moneyCounter, "User3", 20));
-
-        thread1.start();
-        thread2.start();
-        thread3.start();
-    }
+package p0;
+import java.util.List;
+
+public class Tested {
+    public static String _get_correct_indent_level(List<String> lines, int lineIndex) {
+        if (lineIndex < 0 || lineIndex >= lines.size()) {
+            return "";
+        }
+
+        String currentLine = lines.get(lineIndex);
+        if (lineIndex == 0) {
+            return "";
+        }
+
+        String previousLine = lines.get(lineIndex - 1);
+        if (!previousLine.isEmpty() && !previousLine.trim().endsWith(",")) {
+            return getIndentation(previousLine);
+        }
+
+        if (previousLine.trim().startsWith("class ") || previousLine.trim().startsWith("def ") || previousLine.endsWith(":")) {
+            return getIndentation(previousLine) + "  ";
+        }
+
+        for (String line : lines) {
+            if (line.length() >= 8 && line.substring(0, 8).trim().isEmpty()) {
+                return getIndentation(line);
+            }
+        }
+
+        return "";
+    }
+
+    private static String getIndentation(String line) {
+        int index = 0;
+        while (index < line.length() && Character.isWhitespace(line.charAt(index))) {
+            index++;
+        }
+        return line.substring(0, index);
+    }
 }
