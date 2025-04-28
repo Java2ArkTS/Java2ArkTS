@@ -25,7 +25,7 @@ if uploaded_file is not None:
 
 
 def run_jar_with_input():
-    result = subprocess.run(['java', '-jar', 'target/maven-demo.jar'], capture_output=True, text=True)
+    result = subprocess.run(['java', '-jar', 'java_target/maven-demo.jar'], capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError("Java environment not detected, terminating the program.")
     return result.stdout

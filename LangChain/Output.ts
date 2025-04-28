@@ -1,4 +1,5 @@
-export class Tested {
+class Tested {
+    
     public static getCorrectIndentLevel(lines: string[], lineIndex: number): string {
         if (lineIndex < 0 || lineIndex >= lines.length) {
             return "";
@@ -8,14 +9,14 @@ export class Tested {
             return "";
         }
         const previousLine = lines[lineIndex - 1];
-        if (previousLine && !previousLine.trim().endsWith(",")) {
+        if (!previousLine.isEmpty() && !previousLine.trim().endsWith(",")) {
             return this.getIndentation(previousLine);
         }
         if (previousLine.trim().startsWith("class ") || previousLine.trim().startsWith("def ") || previousLine.endsWith(":")) {
             return this.getIndentation(previousLine) + "  ";
         }
         for (const line of lines) {
-            if (line.length >= 8 && line.substring(0, 8).trim().length === 0) {
+            if (line.length >= 8 && line.substring(0, 8).trim().isEmpty()) {
                 return this.getIndentation(line);
             }
         }
