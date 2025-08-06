@@ -1,3 +1,4 @@
+// import { threadStart } from './Washer';
 import { sharedWash } from './Index';
 import taskpool from '@ohos.taskpool';
 
@@ -19,6 +20,9 @@ function stringDecoder(sharedArray : Uint8Array) : string{
 export function getValues(code: any){
   if(code == undefined){
     return ;
+  }
+  if(code['isSyn']){
+    return code;
   }
   if(code['sharedType'] == undefined){
     return code;
@@ -59,7 +63,7 @@ function stringChanger(sharedArray: any, s: string){
 }
 
 export function setValues(obj: any, tmp: any){
-  if(tmp['sharedType']!=undefined){
+  if(tmp['sharedType']!=undefined||obj['sharedType'] == undefined){
     const members = Object.getOwnPropertyNames(obj);
     for(let i :number = 0;i<members.length;i++){
       obj[members[i]] = tmp[members[i]];
@@ -166,15 +170,6 @@ export function getClass(type: string, inClass ?: any){
   }
 }
 
-export function getSyc(){
-  let syn = new SharedArrayBuffer(200);
-  let synArray = new Int8Array(syn);
-  for(let i=0;i<180;i++){
-    synArray[i] = 1;
-  }
-  return synArray;
-}
-
 export interface Runnable{
   run(): void;
 }
@@ -190,7 +185,9 @@ export class Thread{
   }
 
   public start(){
-    taskpool.execute(threadStart, this.threadId);
+    taskpool.execute(threadStart, this.threadId).then((value: number) => { // 100: test number
+      console.log("taskpool start: " + value);
+    });;
   }
 
   constructor(runnableShared: any = null) {
@@ -204,6 +201,12 @@ export class Thread{
     Thread.runnableNum++;
     Thread.runnableList.push(this.runnableShared);
   }
+}
+
+@Concurrent
+function threadStart(threadId: number): number{
+  sharedWash(threadId);
+  return threadId;
 }
 
 export function addFunc(runnableShared: any, archetype: any){
@@ -225,21 +228,34 @@ export function addFunc(runnableShared: any, archetype: any){
   return;
 }
 
-
-// @ts-ignore
-@Concurrent
-function threadStart(threadId: number){
-  sharedWash(threadId);
+export function getSyc(){
+  let syn = new SharedArrayBuffer(32);
+  let synArray = new Int32Array(syn);
+  let wnSyn = new SharedArrayBuffer(32);
+  let wnSynArray = new Int32Array(wnSyn);
+  synArray[0] = 1;
+  wnSynArray[0] = 0;
+  return {syn: synArray, wnSyn: wnSynArray, isSyn: true};
 }
 
-
-export function SynStart(i : number, synArray: Int8Array){
-  let lockState:number=0;
-  do {
-    lockState = Atomics.exchange(synArray, i, 0);
-  } while (lockState !== 1);
+export function SynStart(syc: any){
+  let synArray: Int32Array = syc['syn'];
+  while(Atomics.exchange(synArray, 0, 0) !== 1);
 }
 
-export function SynEnd(i : number, synArray: Int8Array){
-  Atomics.exchange(synArray, i, 1);
+export function SynEnd(syc: any){
+  let synArray: Int32Array = syc['syn'];
+  Atomics.exchange(synArray, 0, 1);
+}
+
+export function wait(syc: any){
+  let wnSynArray: Int32Array = syc['wnSyn'];
+  SynEnd(syc);
+  wnSynArray[0] = 0;
+  while(Atomics.exchange(wnSynArray, 0, 0) !== 1);
+}
+
+export function notify(syc: any){
+  let wnSynArray: Int32Array = syc['wnSyn'];
+  Atomics.exchange(wnSynArray, 0, 0)
 }

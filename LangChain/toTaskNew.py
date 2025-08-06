@@ -255,6 +255,8 @@ Assignments to member variables.
 
 Do not modify:
 
+Elements inside SynStart, SynEnd, wait, and notify.
+
 Non-member variables.
 
 Function definitions.
