@@ -42,11 +42,12 @@ First you need to install LangChain and its package of openai
 pip install -r requirements.txt
 ```
 
-Set environment variables `OPENAI_API_KEY` to your api_key of openai.
+You need to set the environment variables `OPENAI_API_KEY` and `OPENAI_API_BASE`.
 
 To run the AST, you need to install Java 17.
 
 To perform compilation check, you need to install tsc.
+
 
 ```
 cd LangChain
