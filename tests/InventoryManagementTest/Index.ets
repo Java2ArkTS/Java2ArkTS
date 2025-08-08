@@ -1,100 +1,111 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+    let archetype: Runnable;
+    if (runnable.className == "AddStockTask") {
+        archetype = new AddStockTask(new Inventory(0), 0);
+    } else if (runnable.className == "RemoveStockTask") {
+        archetype = new RemoveStockTask(new Inventory(0), 0);
+    } else {
+        archetype = new Thread();
+    }
+    addFunc(runnable, archetype);
+    runnable.run();
 }
 
 class Inventory {
 
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-  private stock: any = getClass('number', 0);
+    private stock = new SharedNumber(0);
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Inventory";
 
-  constructor(initialStock: number) {
-    setValues(this.stock, initialStock);
-  }
-
-  public addStock(amount: number): void {
-    {
-      SynStart(this['synArray']);
-      setValues(this.stock, getValues(this.stock) + amount);
-      console.log(` added ${amount} units. Current stock: ${getValues(this.stock)}`);
-      SynEnd(this['synArray']);
+    constructor(initialStock: number) {
+        this.stock.setValue(initialStock);
+        this.syn = new Syc();
     }
-  }
 
-  public removeStock(amount: number): void {
-    {
-      SynStart(this['synArray']);
-      if (amount <= getValues(this.stock)) {
-        setValues(this.stock, getValues(this.stock) - amount);
-        console.log(` removed ${amount} units. Current stock: ${getValues(this.stock)}`);
-      } else {
-        console.log(` tried to remove ${amount} units, but only ${getValues(this.stock)} units available.`);
-      }
-      SynEnd(this['synArray']);
+    addStock(amount: number): void {
+        SynStart(this.syn);
+        this.stock.setValue(this.stock.getValue() + amount);
+        console.log(` added ${amount} units. Current stock: ${this.stock.getValue()}`);
+        SynEnd(this.syn);
     }
-  }
 
-  public getStock(): number {
-    {
-      SynStart(this['synArray']);
-      const currentStock = getValues(this.stock);
-      SynEnd(this['synArray']);
-      return currentStock;
+    removeStock(amount: number): void {
+        SynStart(this.syn);
+        if (amount <= this.stock.getValue()) {
+            this.stock.setValue(this.stock.getValue() - amount);
+            console.log(` removed ${amount} units. Current stock: ${this.stock.getValue()}`);
+        } else {
+            console.log(` tried to remove ${amount} units, but only ${this.stock.getValue()} units available.`);
+        }
+        SynEnd(this.syn);
     }
-  }
+
+    getStock(): number {
+        SynStart(this.syn);
+        const currentStock = this.stock.getValue();
+        SynEnd(this.syn);
+        return currentStock;
+    }
 }
 
 class AddStockTask implements Runnable {
 
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-  private inventory: any = getClass('Inventory', new Inventory(100));
-  private amount: any = getClass('number', 0);
+    private inventory: Inventory;
+    private amount = new SharedNumber(amount);
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "AddStockTask";
 
-  constructor(inventory: Inventory, amount: number) {
-    setValues(this.inventory, inventory);
-    setValues(this.amount, amount);
-  }
+    constructor(inventory: Inventory, amount: number) {
+        this.inventory = inventory;
+        this.amount.setValue(amount);
+    }
 
-  run(): void {
-    getValues(this.inventory.addStock(getValues(this.amount)));
-  }
+    run(): void {
+        this.inventory.addStock(this.amount.getValue());
+    }
 }
 
 class RemoveStockTask implements Runnable {
 
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-  private inventory: any = getClass('Inventory', new Inventory(100));
-  private amount: any = getClass('number', 0);
+    private inventory: Inventory;
+    private amount = new SharedNumber(amount);
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "RemoveStockTask";
 
-  constructor(inventory: Inventory, amount: number) {
-    setValues(this.inventory, inventory);
-    setValues(this.amount, amount);
-  }
+    constructor(inventory: Inventory, amount: number) {
+        this.inventory = inventory;
+        this.amount.setValue(amount);
+    }
 
-  run(): void {
-    getValues(this.inventory.removeStock(getValues(this.amount)));
-  }
+    run(): void {
+        this.inventory.removeStock(this.amount.getValue());
+    }
 }
 
 class InventoryManagementTest {
 
-  public synArray : any = getSyc();
-  public sharedType: string = "object";
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "InventoryManagementTest";
 
-  public static main(args: string[]): void {
-    const inventory = new Inventory(100);
-    const thread1 = new Thread(new AddStockTask(inventory, 30));
-    const thread2 = new Thread(new RemoveStockTask(inventory, 50));
-    const thread3 = new Thread(new AddStockTask(inventory, 20));
-    const thread4 = new Thread(new RemoveStockTask(inventory, 70));
-    getValues(thread1.start());
-    getValues(thread2.start());
-    getValues(thread3.start());
-    getValues(thread4.start());
-  }
+    public static main(args: string[]): void {
+        const inventory = new Inventory(100);
+        const thread1 = new Thread(new AddStockTask(inventory, 30));
+        const thread2 = new Thread(new RemoveStockTask(inventory, 50));
+        const thread3 = new Thread(new AddStockTask(inventory, 20));
+        const thread4 = new Thread(new RemoveStockTask(inventory, 70));
+        thread1.start();
+        thread2.start();
+        thread3.start();
+        thread4.start();
+    }
+}
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

@@ -1,63 +1,219 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+  let archetype: Runnable;
+  if (runnable.className == "VideoShow1") {
+    archetype = new VideoShow1(new Semaphores());
+  } else if (runnable.className == "VideoShow2") {
+    archetype = new VideoShow2(new Semaphores());
+  } else if (runnable.className == "VideoShow3") {
+    archetype = new VideoShow3(new Semaphores());
+  } else {
+    archetype = new Thread();
+  }
+  addFunc(runnable, archetype);
+  runnable.run();
 }
 
 class VideoShow {
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
 
-  public static main(args: string[]): void {
-    const semaphores = new Semaphores();
-    const show1 = new Thread(new VideoShow1(semaphores));
-    const show2 = new Thread(new VideoShow2(semaphores));
-    const show3 = new Thread(new VideoShow3(semaphores));
-    getValues(show1.start());
-    getValues(show2.start());
-    getValues(show3.start());
-  }
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "VideoShow";
+
+    public static main(args: string[]): void {
+        const semaphores = new Semaphores();
+        const show1 = new Thread(new VideoShow1(semaphores));
+        const show2 = new Thread(new VideoShow2(semaphores));
+        const show3 = new Thread(new VideoShow3(semaphores));
+        show1.start();
+        show2.start();
+        show3.start();
+    }
 }
 
 class Semaphores {
-  public s: any = getClass('boolean', true);
-  public s0: any = getClass('boolean', true);
-  public s1: any = getClass('boolean', true);
-  public s2: any = getClass('boolean', true);
-  public count0: any = getClass('number', 0);
-  public count1: any = getClass('number', 0);
-  public count2: any = getClass('number', 0);
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
 
-  public ps(): boolean {
-    SynStart(getValues(this['synArray']));
-    if (getValues(this.s)) {
-      setValues(this.s, false);
-      SynEnd(getValues(this['synArray']));
-      return true;
-    } else {
-      SynEnd(getValues(this['synArray']));
-      return false;
+    public s = new SharedBoolean(true);
+    public s0 = new SharedBoolean(true);
+    public s1 = new SharedBoolean(true);
+    public s2 = new SharedBoolean(true);
+    public count0 = new SharedNumber(0);
+    public count1 = new SharedNumber(0);
+    public count2 = new SharedNumber(0);
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Semaphores";
+
+    public ps(): boolean {
+        SynStart(this.syn);
+        if (this.s.getValue()) {
+            this.s.setValue(false);
+            SynEnd(this.syn);
+            return true;
+        } else {
+            SynEnd(this.syn);
+            return false;
+        }
     }
-  }
 
-  // ... (other methods remain unchanged)
+    public ps0(): boolean {
+        SynStart(this.syn);
+        if (this.s0.getValue()) {
+            this.s0.setValue(false);
+            SynEnd(this.syn);
+            return true;
+        } else {
+            SynEnd(this.syn);
+            return false;
+        }
+    }
 
+    public ps1(): boolean {
+        SynStart(this.syn);
+        if (this.s1.getValue()) {
+            this.s1.setValue(false);
+            SynEnd(this.syn);
+            return true;
+        } else {
+            SynEnd(this.syn);
+            return false;
+        }
+    }
+
+    public ps2(): boolean {
+        SynStart(this.syn);
+        if (this.s2.getValue()) {
+            this.s2.setValue(false);
+            SynEnd(this.syn);
+            return true;
+        } else {
+            SynEnd(this.syn);
+            return false;
+        }
+    }
+
+    public vs(): void {
+        SynStart(this.syn);
+        this.s.setValue(true);
+        SynEnd(this.syn);
+    }
+
+    public vs0(): void {
+        SynStart(this.syn);
+        this.s0.setValue(true);
+        SynEnd(this.syn);
+    }
+
+    public vs1(): void {
+        SynStart(this.syn);
+        this.s1.setValue(true);
+        SynEnd(this.syn);
+    }
+
+    public vs2(): void {
+        SynStart(this.syn);
+        this.s2.setValue(true);
+        SynEnd(this.syn);
+    }
 }
 
 class VideoShow1 implements Runnable {
-  // ... (unchanged)
 
+    public semaphores: Semaphores;
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "VideoShow1";
+
+    constructor(semaphores: Semaphores) {
+        this.semaphores = semaphores;
+    }
+
+    run(): void {
+        while (!this.semaphores.ps0()) {
+        }
+        this.semaphores.count0++;
+        if (this.semaphores.count0 === 1) {
+            while (!this.semaphores.ps()) {
+            }
+        }
+        this.semaphores.vs0();
+        console.log("Video show 1 begins.");
+        while (!this.semaphores.ps0()) {
+        }
+        this.semaphores.count0--;
+        if (this.semaphores.count0 === 0) {
+            console.log("Video show 1 ends.");
+            this.semaphores.vs();
+        }
+        this.semaphores.vs0();
+    }
 }
 
 class VideoShow2 implements Runnable {
-  // ... (unchanged)
 
+    public semaphores: Semaphores;
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "VideoShow2";
+
+    constructor(semaphores: Semaphores) {
+        this.semaphores = semaphores;
+    }
+
+    public run(): void {
+        while (!this.semaphores.ps1()) {
+        }
+        this.semaphores.count1++;
+        if (this.semaphores.count1 === 1) {
+            while (!this.semaphores.ps()) {
+            }
+        }
+        this.semaphores.vs1();
+        console.log("Video show 2 begins.");
+        while (!this.semaphores.ps1()) {
+        }
+        this.semaphores.count1--;
+        if (this.semaphores.count1 === 0) {
+            console.log("Video show 2 ends.");
+            this.semaphores.vs();
+        }
+        this.semaphores.vs1();
+    }
 }
 
 class VideoShow3 implements Runnable {
-  // ... (unchanged)
 
+    public semaphores: Semaphores;
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "VideoShow3";
+
+    constructor(semaphores: Semaphores) {
+        this.semaphores = semaphores;
+    }
+
+    public run(): void {
+        while (!this.semaphores.ps2()) {
+        }
+        this.semaphores.count2++;
+        if (this.semaphores.count2 === 1) {
+            while (!this.semaphores.ps()) {
+            }
+        }
+        this.semaphores.vs2();
+        console.log("Video show 3 begins.");
+        while (!this.semaphores.ps2()) {
+        }
+        this.semaphores.count2--;
+        if (this.semaphores.count2 === 0) {
+            console.log("Video show 3 ends.");
+            this.semaphores.vs();
+        }
+        this.semaphores.vs2();
+    }
+}
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

@@ -1,185 +1,189 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+  let archetype: Runnable;
+  if (runnable.className == "P1") {
+    archetype = new P1(new Semaphores());
+  } else if (runnable.className == "P2") {
+    archetype = new P2(new Semaphores());
+  } else if (runnable.className == "P3") {
+    archetype = new P3(new Semaphores());
+  } else {
+    archetype = new Thread();
+  }
+  addFunc(runnable, archetype);
+  runnable.run();
 }
 
 class OddEven {
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "OddEven";
 
     public static main(args: string[]): void {
         const semaphores = new Semaphores();
         const p1 = new Thread(new P1(semaphores));
         const p2 = new Thread(new P2(semaphores));
         const p3 = new Thread(new P3(semaphores));
-        getValues(p1.start());
-        getValues(p2.start());
-        getValues(p3.start());
+        p1.start();
+        p2.start();
+        p3.start();
     }
 }
 
-
 class Semaphores {
-
-    public synArray : any = getSyc();
-    public sharedType: string = "object";
-
-    public mutex: any = getClass('boolean', true);
-
-    public odd: any = getClass('number', 0);
-
-    public even: any = getClass('number', 0);
-
-    public empty: any = getClass('number', 5);
+    public mutex = new SharedBoolean(true);
+    public odd = new SharedNumber(0);
+    public even = new SharedNumber(0);
+    public empty = new SharedNumber(5);
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Semaphores";
 
     public pMutex(): boolean {
-        SynStart(this['synArray']);
-        if (getValues(this.mutex)) {
-            setValues(this.mutex, false);
-            SynEnd(this['synArray']);
+        SynStart(this.syn);
+        if (this.mutex.getValue()) {
+            this.mutex.setValue(false);
+            SynEnd(this.syn);
             return true;
         } else {
-            SynEnd(this['synArray']);
+            SynEnd(this.syn);
             return false;
         }
     }
 
     public pOdd(): boolean {
-        SynStart(this['synArray']);
-        if (getValues(this.odd) > 0) {
-            setValues(this.odd, getValues(this.odd) - 1);
-            SynEnd(this['synArray']);
+        SynStart(this.syn);
+        if (this.odd.getValue() > 0) {
+            this.odd.setValue(this.odd.getValue() - 1);
+            SynEnd(this.syn);
             return true;
         } else {
-            SynEnd(this['synArray']);
+            SynEnd(this.syn);
             return false;
         }
     }
 
     public pEven(): boolean {
-        SynStart(this['synArray']);
-        if (getValues(this.even) > 0) {
-            setValues(this.even, getValues(this.even) - 1);
-            SynEnd(this['synArray']);
+        SynStart(this.syn);
+        if (this.even.getValue() > 0) {
+            this.even.setValue(this.even.getValue() - 1);
+            SynEnd(this.syn);
             return true;
         } else {
-            SynEnd(this['synArray']);
+            SynEnd(this.syn);
             return false;
         }
     }
 
     public pEmpty(): boolean {
-        SynStart(this['synArray']);
-        if (getValues(this.empty) > 0) {
-            setValues(this.empty, getValues(this.empty) - 1);
-            SynEnd(this['synArray']);
+        SynStart(this.syn);
+        if (this.empty.getValue() > 0) {
+            this.empty.setValue(this.empty.getValue() - 1);
+            SynEnd(this.syn);
             return true;
         } else {
-            SynEnd(this['synArray']);
+            SynEnd(this.syn);
             return false;
         }
     }
 
     public vMutex(): void {
-        SynStart(this['synArray']);
-        setValues(this.mutex, true);
-        SynEnd(this['synArray']);
+        SynStart(this.syn);
+        this.mutex.setValue(true);
+        SynEnd(this.syn);
     }
 
     public vOdd(): void {
-        SynStart(this['synArray']);
-        setValues(this.odd, getValues(this.odd) + 1);
-        SynEnd(this['synArray']);
+        SynStart(this.syn);
+        this.odd.setValue(this.odd.getValue() + 1);
+        SynEnd(this.syn);
     }
 
     public vEven(): void {
-        SynStart(this['synArray']);
-        setValues(this.even, getValues(this.even) + 1);
-        SynEnd(this['synArray']);
+        SynStart(this.syn);
+        this.even.setValue(this.even.getValue() + 1);
+        SynEnd(this.syn);
     }
 
     public vEmpty(): void {
-        SynStart(this['synArray']);
-        setValues(this.empty, getValues(this.empty) + 1);
-        SynEnd(this['synArray']);
+        SynStart(this.syn);
+        this.empty.setValue(this.empty.getValue() + 1);
+        SynEnd(this.syn);
     }
 }
 
-
 class P1 implements Runnable {
-
-    public semaphores: any = getClass('Semaphores', new Semaphores());
-    public x: any = getClass('number', 0);
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    public semaphores: Semaphores;
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "P1";
+    public x = new SharedNumber(0);
 
     constructor(semaphores: Semaphores) {
-        setValues(this.semaphores, semaphores);
+        this.semaphores = semaphores;
     }
 
-    run() {
+    public run(): void {
         while (true) {
-            while (!getValues(this.semaphores.pEmpty())) {}
-            while (!getValues(this.semaphores.pMutex())) {}
+            while (!this.semaphores.pEmpty()) {}
+            while (!this.semaphores.pMutex()) {}
             console.log("P1 puts a number.");
-            getValues(this.semaphores.vMutex());
-            if (getValues(this.x)++ % 2 === 0) {
-                getValues(this.semaphores.vEven());
+            this.semaphores.vMutex();
+            if (this.x.getValue() % 2 === 0) {
+                this.semaphores.vEven();
             } else {
-                getValues(this.semaphores.vOdd());
+                this.semaphores.vOdd();
             }
+            this.x.setValue(this.x.getValue() + 1);
         }
     }
 }
 
-
 class P2 implements Runnable {
-
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
-    public semaphores: any = getClass('Semaphores', undefined);
+    public semaphores: Semaphores;
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "P2";
 
     constructor(semaphores: Semaphores) {
-        setValues(this.semaphores, semaphores);
+        this.semaphores = semaphores;
     }
 
-    run() {
+    public run(): void {
         while (true) {
-            while (!getValues(this.semaphores.pOdd())) {
-            }
-            while (!getValues(this.semaphores.pMutex())) {
-            }
+            while (!this.semaphores.pOdd()) {}
+            while (!this.semaphores.pMutex()) {}
             console.log("P2 gets an odd number.");
-            getValues(this.semaphores.vMutex());
-            getValues(this.semaphores.vEmpty());
+            this.semaphores.vMutex();
+            this.semaphores.vEmpty();
             console.log("P2 counts an odd number.");
         }
     }
 }
 
-
 class P3 implements Runnable {
-
-    public semaphores: any = getClass('Semaphores', new Semaphores()); 
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    public semaphores: Semaphores;
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "P3";
 
     constructor(semaphores: Semaphores) {
-        setValues(this.semaphores, semaphores);
+        this.semaphores = semaphores;
     }
 
     public run(): void {
         while (true) {
-            while (!getValues(this.semaphores.pEven())) {
-            }
-            while (!getValues(this.semaphores.pMutex())) {
-            }
-            console.log(getValues("P3 gets an even number."));
-            getValues(this.semaphores.vMutex());
-            getValues(this.semaphores.vEmpty());
-            console.log(getValues("P3 counts an even number."));
+            while (!this.semaphores.pEven()) {}
+            while (!this.semaphores.pMutex()) {}
+            console.log("P3 gets an even number.");
+            this.semaphores.vMutex();
+            this.semaphores.vEmpty();
+            console.log("P3 counts an even number.");
         }
     }
+}
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

@@ -1,13 +1,39 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import {
+    SynStart,
+    SynEnd,
+    wait,
+    notify,
+    SharedBoolean,
+    SharedString,
+    SharedNumber,
+    Syc,
+    isMainThread,
+    addFunc,
+    Runnable,
+    Thread
+} from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+    let archetype: Runnable;
+    if (runnable.className == "P1") {
+        archetype = new P1(new Semaphores(new Syc()));
+    } else if (runnable.className == "P2") {
+        archetype = new P2(new Semaphores(new Syc()));
+    } else if (runnable.className == "P3") {
+        archetype = new P3(new Semaphores(new Syc()));
+    } else if (runnable.className == "P4") {
+        archetype = new P4(new Semaphores(new Syc()));
+    } else {
+        archetype = new Thread();
+    }
+    addFunc(runnable, archetype);
+    runnable.run();
 }
 
 class Smokers {
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Smokers";
 
     public static main(args: string[]): void {
         const semaphores = new Semaphores();
@@ -15,175 +41,200 @@ class Smokers {
         const thread2 = new Thread(new P2(semaphores));
         const thread3 = new Thread(new P3(semaphores));
         const thread4 = new Thread(new P4(semaphores));
-        getValues(thread1.start());
-        getValues(thread2.start());
-        getValues(thread3.start());
-        getValues(thread4.start());
+        thread1.start();
+        thread2.start();
+        thread3.start();
+        thread4.start();
     }
 }
 
 class Semaphores {
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
-    public num: any = getClass('number', 0);
-    public offer1: any = getClass('boolean', false);
-    public offer2: any = getClass('boolean', false);
-    public offer3: any = getClass('boolean', false);
-    public finish: any = getClass('boolean', false);
+    public num = new SharedNumber(0);
+    public offer1 = new SharedBoolean(false);
+    public offer2 = new SharedBoolean(false);
+    public offer3 = new SharedBoolean(false);
+    public finish = new SharedBoolean(false);
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Semaphores";
+
+    constructor(syn: Syc) {
+        this.syn = syn;
+    }
 
     public V_offer1(): void {
-        SynStart(getValues(this['synArray']));
-        setValues(this.offer1, true);
-        SynEnd(getValues(this['synArray']));
+        {
+            SynStart(this.syn);
+            this.offer1.setValue(true);
+            SynEnd(this.syn);
+        }
     }
 
     public V_offer2(): void {
-        SynStart(getValues(this['synArray']));
-        setValues(this.offer2, true);
-        SynEnd(getValues(this['synArray']));
+        {
+            SynStart(this.syn);
+            this.offer2.setValue(true);
+            SynEnd(this.syn);
+        }
     }
 
     public V_offer3(): void {
-        SynStart(getValues(this['synArray']));
-        setValues(this.offer3, true);
-        SynEnd(getValues(this['synArray']));
+        {
+            SynStart(this.syn);
+            this.offer3.setValue(true);
+            SynEnd(this.syn);
+        }
     }
 
     public V_finish(): void {
-        SynStart(getValues(this['synArray']));
-        setValues(this.finish, true);
-        SynEnd(getValues(this['synArray']));
+        {
+            SynStart(this.syn);
+            this.finish.setValue(true);
+            SynEnd(this.syn);
+        }
     }
 
     public P_finish(): boolean {
-        SynStart(getValues(this['synArray']));
-        if (getValues(this.finish)) {
-            setValues(this.finish, false);
-            SynEnd(getValues(this['synArray']));
-            return true;
-        } else {
-            SynEnd(getValues(this['synArray']));
-            return false;
+        {
+            SynStart(this.syn);
+            if (this.finish.getValue()) {
+                this.finish.setValue(false);
+                SynEnd(this.syn);
+                return true;
+            } else {
+                SynEnd(this.syn);
+                return false;
+            }
         }
     }
 
     public P_offer1(): boolean {
-        SynStart(getValues(this['synArray']));
-        if (getValues(this.offer1)) {
-            setValues(this.offer1, false);
-            SynEnd(getValues(this['synArray']));
-            return true;
-        } else {
-            SynEnd(getValues(this['synArray']));
-            return false;
+        {
+            SynStart(this.syn);
+            if (this.offer1.getValue()) {
+                this.offer1.setValue(false);
+                SynEnd(this.syn);
+                return true;
+            } else {
+                SynEnd(this.syn);
+                return false;
+            }
         }
     }
 
     public P_offer2(): boolean {
-        SynStart(getValues(this['synArray']));
-        if (getValues(this.offer2)) {
-            setValues(this.offer2, false);
-            SynEnd(getValues(this['synArray']));
-            return true;
-        } else {
-            SynEnd(getValues(this['synArray']));
-            return false;
+        {
+            SynStart(this.syn);
+            if (this.offer2.getValue()) {
+                this.offer2.setValue(false);
+                SynEnd(this.syn);
+                return true;
+            } else {
+                SynEnd(this.syn);
+                return false;
+            }
         }
     }
 
     public P_offer3(): boolean {
-        SynStart(getValues(this['synArray']));
-        if (getValues(this.offer3)) {
-            setValues(this.offer3, false);
-            SynEnd(getValues(this['synArray']));
-            return true;
-        } else {
-            SynEnd(getValues(this['synArray']));
-            return false;
+        {
+            SynStart(this.syn);
+            if (this.offer3.getValue()) {
+                this.offer3.setValue(false);
+                SynEnd(this.syn);
+                return true;
+            } else {
+                SynEnd(this.syn);
+                return false;
+            }
         }
     }
 }
 
 class P1 implements Runnable {
-    public semaphores: any = getClass('Semaphores', null);
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    public semaphores: Semaphores;
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "P1";
 
     constructor(semaphores: Semaphores) {
-        setValues(this.semaphores, semaphores);
+        this.semaphores = semaphores;
     }
 
     public run(): void {
         while (true) {
-            setValues(this.semaphores.num, getValues(this.semaphores.num) + 1);
-            setValues(this.semaphores.num, getValues(this.semaphores.num) % 3);
-            if (getValues(this.semaphores.num) === 0) {
-                getValues(this.semaphores.V_offer1());
-            } else if (getValues(this.semaphores.num) === 1) {
-                getValues(this.semaphores.V_offer2());
+            this.semaphores.num++;
+            this.semaphores.num %= 3;
+            if (this.semaphores.num === 0) {
+                this.semaphores.V_offer1();
+            } else if (this.semaphores.num === 1) {
+                this.semaphores.V_offer2();
             } else {
-                getValues(this.semaphores.V_offer3());
+                this.semaphores.V_offer3();
             }
             console.log("P1 put things onto the table.");
-            while (!getValues(this.semaphores.P_finish())) {
+            while (!this.semaphores.P_finish()) {
             }
         }
     }
 }
 
 class P2 implements Runnable {
-    public semaphores: any = getClass('Semaphores', new Semaphores());
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    public semaphores: Semaphores;
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "P2";
 
     constructor(semaphores: Semaphores) {
-        setValues(this.semaphores, semaphores);
+        this.semaphores = semaphores;
     }
 
     public run(): void {
         while (true) {
-            while (!getValues(this.semaphores.P_offer3())) {
+            while (!this.semaphores.P_offer3()) {
             }
             console.log("P2 is smoking.");
-            getValues(this.semaphores.V_finish());
+            this.semaphores.V_finish();
         }
     }
 }
 
 class P3 implements Runnable {
-    public semaphores: any = getClass('Semaphores', new Semaphores());
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    public semaphores: Semaphores;
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "P3";
 
     constructor(semaphores: Semaphores) {
-        setValues(this.semaphores, semaphores);
+        this.semaphores = semaphores;
     }
 
     public run(): void {
         while (true) {
-            while (!getValues(this.semaphores.P_offer2())) {
+            while (!this.semaphores.P_offer2()) {
             }
             console.log("P3 is smoking.");
-            getValues(this.semaphores.V_finish());
+            this.semaphores.V_finish();
         }
     }
 }
 
 class P4 implements Runnable {
-    public semaphores: any = getClass('Semaphores', new Semaphores());
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "P4";
+    public semaphores: Semaphores;
 
-    constructor(semaphores: Semaphores) {
-        setValues(this.semaphores, semaphores);
-    }
-
-    public run(): void {
+    run(): void {
         while (true) {
-            while (!getValues(this.semaphores.P_offer1())) {
+            while (!this.semaphores.P_offer1()) {
             }
             console.log("P4 is smoking.");
-            getValues(this.semaphores.V_finish());
+            this.semaphores.V_finish();
         }
     }
+}
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

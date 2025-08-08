@@ -29,7 +29,6 @@ class ConcreteSubject implements Subject {
         let snapshot: Observer[];
         synchronized(this.lock, () => {
             this.synchronizeMethod3();
-            snapshot = [...this.observers];
         });
         for (const observer of snapshot) {
             if (observer != null) {
@@ -44,15 +43,15 @@ class ConcreteSubject implements Subject {
     }
 
     private synchronizeMethod1(): void {
-        // Implementation of synchronized method 1
+        // Implementation for synchronize method 1
     }
 
     private synchronizeMethod2(): void {
-        // Implementation of synchronized method 2
+        // Implementation for synchronize method 2
     }
 
     private synchronizeMethod3(): void {
-        // Implementation of synchronized method 3
+        // Implementation for synchronize method 3
     }
 }
 
@@ -71,14 +70,18 @@ class ConcreteObserver implements Observer {
 class ObserverPatternExample {
     static main(): void {
         const subject = new ConcreteSubject();
-        const observer1 = new ConcreteObserver('Observer 1');
-        const observer2 = new ConcreteObserver('Observer 2');
+        const observer1 = new ConcreteObserver("Observer 1");
+        const observer2 = new ConcreteObserver("Observer 2");
         subject.registerObserver(observer1);
         subject.registerObserver(observer2);
-        subject.stateChanged('New state!');
+        subject.stateChanged("New state!");
         subject.removeObserver(observer1);
-        subject.stateChanged('Another new state!');
+        subject.stateChanged("Another new state!");
     }
 }
 
 ObserverPatternExample.main();
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
+}

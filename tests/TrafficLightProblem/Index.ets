@@ -1,158 +1,121 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+  let archetype: Runnable;
+  if (runnable.className == "VehicleClass") {
+    archetype = new VehicleClass(new Intersection(), 0);
+  } else {
+    archetype = new Thread();
+  }
+  addFunc(runnable, archetype);
+  runnable.run();
 }
 
 class Intersection {
-  private greenLight: any = getClass('boolean', true);
-  private waitingCount: any = getClass('number', 0);
 
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-  
-  changeLight(): void {
-    setValues(this.greenLight, !getValues(this.greenLight));
-    if (getValues(this.greenLight)) {
-      console.log("Traffic light changes to green.");
-    } else {
-      console.log("Traffic light changes to red.");
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Intersection";
+
+    private greenLight = new SharedBoolean(true);
+
+    private waitingCount = new SharedNumber(0);
+
+    changeLight(): void {
+        this.greenLight.setValue(!this.greenLight.getValue());
+        if (this.greenLight.getValue()) {
+            console.log("Traffic light changes to green.");
+        } else {
+            console.log("Traffic light changes to red.");
+        }
+        {
+            SynStart(this.syn);
+            notify(this.syn);
+            SynEnd(this.syn);
+        }
     }
-    SynStart(this['synArray']);
-    notify(this['synArray']);
-    SynEnd(this['synArray']);
-  }
 
-  isGreen(): boolean {
-    return getValues(this.greenLight);
-  }
-
-  async waitToPass(): Promise<void> {
-    SynStart(this['synArray']);
-    setValues(this.waitingCount, getValues(this.waitingCount) + 1);
-    while (!this.isGreen()) {
-      await wait(this['synArray']);
+    isGreen(): boolean {
+        return this.greenLight.getValue();
     }
-    setValues(this.waitingCount, getValues(this.waitingCount) - 1);
-    SynEnd(this['synArray']);
-  }
 
-  getWaitingCount(): number {
-    return getValues(this.waitingCount);
-  }
+    async waitToPass(): Promise<void> {
+        {
+            SynStart(this.syn);
+            this.waitingCount.setValue(this.waitingCount.getValue() + 1);
+            while (!this.isGreen()) {
+                await wait(this.syn);
+            }
+            this.waitingCount.setValue(this.waitingCount.getValue() - 1);
+            SynEnd(this.syn);
+        }
+    }
+
+    getWaitingCount(): number {
+        return this.waitingCount.getValue();
+    }
 }
+
 
 class VehicleClass implements Runnable {
-  private intersection: any = getClass('Intersection', new Intersection());
-  private vehicleId: any = getClass('number', 0);
 
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
+    private intersection: Intersection;
 
-  constructor(intersection: Intersection, vehicleId: number) {
-    setValues(this.intersection, intersection);
-    setValues(this.vehicleId, vehicleId);
-  }
+    private vehicleId = new SharedNumber(0);
 
-  run(): void {
-    while (!getValues(Thread.interrupted())) {
-      try {
-        getValues(Thread.sleep(1000));
-        getValues(this.intersection.waitToPass());
-        console.log("Vehicle " + getValues(this.vehicleId) + " passes the traffic light.");
-      } catch (e) {
-        if (e instanceof InterruptedException) {
-          getValues(Thread.currentThread().interrupt());
-        }
-      }
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "VehicleClass";
+
+    constructor(intersection: Intersection, vehicleId: number) {
+        this.intersection = intersection;
+        this.vehicleId.setValue(vehicleId);
     }
-  }
+
+    run(): void {
+        while (!Thread.interrupted()) {
+            try {
+                Thread.sleep(1000);
+                this.intersection.waitToPass();
+                console.log("Vehicle " + this.vehicleId.getValue() + " passes the traffic light.");
+            } catch (e) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
 }
+
 
 class TrafficLightProblem {
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
 
-  public static main() {
-    const intersection = new Intersection();
-    for (let i = 1; i <= 10; i++) {
-      const vehicleRunnable = new VehicleClass(intersection, i);
-      const vehicleThread = new Thread(vehicleRunnable, "Vehicle " + i);
-      vehicleThread.start();
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "TrafficLightProblem";
+
+    static main(args: string[]): void {
+        const intersection = new Intersection();
+        for (let i = 1; i <= 10; i++) {
+            const vehicleThread = new Thread(new VehicleClass(intersection, i), "Vehicle " + i);
+            vehicleThread.start();
+        }
+        for (let i = 0; i < 5; i++) {
+            intersection.changeLight();
+            try {
+                Thread.sleep(3000);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        for (const thread of Thread.getAllStackTraces().keys()) {
+            if (thread.getName().startsWith("Vehicle")) {
+                thread.interrupt();
+            }
+        }
     }
-    for (let i = 0; i < 5; i++) {
-      intersection.changeLight();
-      try {
-        Thread.sleep(3000);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    Thread.getAllStackTraces().keys().forEach(thread => {
-      if (thread.getName().startsWith("Vehicle")) {
-        thread.interrupt();
-      }
-    });
-  }
 }
 
-class Intersection {
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-
-  private greenLight: AtomicBoolean = new AtomicBoolean(true);
-  private waitingCount: AtomicInteger = new AtomicInteger(0);
-
-  changeLight() {
-    getValues(this.greenLight).set(!getValues(this.greenLight).get());
-    if (getValues(this.greenLight).get()) {
-      console.log("Traffic light changes to green.");
-    } else {
-      console.log("Traffic light changes to red.");
-    }
-    synchronized(this, () => {
-      notifyAll();
-    });
-  }
-
-  isGreen(): boolean {
-    return getValues(this.greenLight).get();
-  }
-
-  async waitToPass() {
-    getValues(this.waitingCount).incrementAndGet();
-    while (!getValues(this.isGreen())) {
-      await wait(this);
-    }
-    getValues(this.waitingCount).decrementAndGet();
-  }
-
-  getWaitingCount(): number {
-    return getValues(this.waitingCount).get();
-  }
-}
-
-class VehicleClass implements Runnable {
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-  private intersection: Intersection;
-  private vehicleId: number;
-
-  constructor(intersection: Intersection, vehicleId: number) {
-    setValues(this.intersection, intersection);
-    setValues(this.vehicleId, vehicleId);
-  }
-
-  async run() {
-    while (!Thread.interrupted()) {
-      try {
-        await Thread.sleep(1000);
-        await getValues(this.intersection).waitToPass();
-        console.log(`Vehicle ${getValues(this.vehicleId)} passes the traffic light.`);
-      } catch (e) {
-        Thread.currentThread().interrupt();
-      }
-    }
-  }
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

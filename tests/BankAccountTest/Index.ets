@@ -1,92 +1,95 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+  let archetype: Runnable;
+  if (runnable.className == "DepositTask") {
+    archetype = new DepositTask(new BankAccount(), 0);
+  } else if (runnable.className == "WithdrawTask") {
+    archetype = new WithdrawTask(new BankAccount(), 0);
+  } else {
+    archetype = new Thread();
+  }
+  addFunc(runnable, archetype);
+  runnable.run();
 }
 
 class BankAccount {
-
-  private balance: any = getClass('number', 0);
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
+  private balance = new SharedNumber(0);
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "BankAccount";
 
   public deposit(amount: number): void {
-    SynStart(this['synArray']);
-    setValues(this.balance, getValues(this.balance) + amount);
-    console.log(" deposited: " + amount + ", balance: " + getValues(this.balance));
-    SynEnd(this['synArray']);
+    SynStart(this.syn);
+    this.balance.setValue(this.balance.getValue() + amount);
+    console.log(` deposited: ${amount}, balance: ${this.balance.getValue()}`);
+    SynEnd(this.syn);
   }
 
   public withdraw(amount: number): void {
-    SynStart(this['synArray']);
-    if (amount <= getValues(this.balance)) {
-      setValues(this.balance, getValues(this.balance) - amount);
-      console.log(" withdrew: " + amount + ", balance: " + getValues(this.balance));
+    SynStart(this.syn);
+    if (amount <= this.balance.getValue()) {
+      this.balance.setValue(this.balance.getValue() - amount);
+      console.log(` withdrew: ${amount}, balance: ${this.balance.getValue()}`);
     } else {
-      console.log(" tried to withdraw: " + amount + ", but insufficient balance.");
+      console.log(` tried to withdraw: ${amount}, but insufficient balance.`);
     }
-    SynEnd(this['synArray']);
+    SynEnd(this.syn);
   }
 
   public getBalance(): number {
-    SynStart(this['synArray']);
-    const currentBalance = getValues(this.balance);
-    SynEnd(this['synArray']);
+    SynStart(this.syn);
+    const currentBalance = this.balance.getValue();
+    SynEnd(this.syn);
     return currentBalance;
   }
 }
 
 class DepositTask implements Runnable {
-
-  private account: any = getClass('BankAccount', new BankAccount());
-  private amount: any = getClass('number', 0);
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
+  private account: BankAccount;
+  private amount = new SharedNumber(amount);
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "DepositTask";
 
   constructor(account: BankAccount, amount: number) {
-    setValues(this.account, account);
-    setValues(this.amount, amount);
+    this.account = account;
+    this.amount.setValue(amount);
   }
 
   run(): void {
     for (let i = 0; i < 5; i++) {
-      getValues(this.account.deposit(this.amount));
+      this.account.deposit(this.amount.getValue());
     }
   }
 }
 
 class WithdrawTask implements Runnable {
-
-  private account: any = getClass('BankAccount', new BankAccount());
-  private amount: any = getClass('number', 0);
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
+  private account: BankAccount;
+  private amount = new SharedNumber(amount);
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "WithdrawTask";
 
   constructor(account: BankAccount, amount: number) {
-    setValues(this.account, account);
-    setValues(this.amount, amount);
+    this.account = account;
+    this.amount.setValue(amount);
   }
 
   run(): void {
     for (let i = 0; i < 5; i++) {
-      getValues(this.account.withdraw(this.amount));
+      this.account.withdraw(this.amount.getValue());
     }
   }
 }
 
-class BankAccountTest {
+class ExampleClass {
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "ExampleClass";
+  // Other methods and properties of the class
+}
 
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-
-  public static main(args: string[]): void {
-    const account = new BankAccount();
-    const depositTask = new DepositTask(account, 100);
-    const withdrawTask = new WithdrawTask(account, 50);
-    const depositThread = new Thread(depositTask);
-    const withdrawThread = new Thread(withdrawTask);
-    depositThread.start();
-    withdrawThread.start();
-  }
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

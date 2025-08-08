@@ -1,32 +1,41 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+class SimpleFuture {
+    private result: string | null = null;
+    private isDone: boolean = false;
 
-export function sharedWash(threadId: number) {
-    let archetype = Thread.runnableList[threadId];
-    archetype.run();
-}
-
-class SimpleConcurrentExample {
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
-
-    public static main(args: string[]): void {
-        const thread1: Thread = new Thread(new RunnableTask());
-        const thread2: Thread = new Thread(new RunnableTask());
-        getValues(thread1.start());
-        getValues(thread2.start());
-        console.log("Main thread is running...");
+    constructor() {
+        this.isDone = false;
     }
-}
 
-class RunnableTask implements Runnable {
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    setResult(result: string): void {
+        this.result = result;
+        this.isDone = true;
+    }
 
-    run(): void {
-        for (let i = 0; i < 5; i++) {
-            console.log(`${getValues(Thread.currentThread().getName())} - Count: ${i}`);
-            for (let j = 0; j < 2000; j++);
+    get(): string | null {
+        while (!this.isDone) {
+            // Busy wait
         }
-        console.log(`${getValues(Thread.currentThread().getName())} is finished.`);
+        return this.result;
     }
+
+    checkIsDone(): boolean {
+        return this.isDone;
+    }
+}
+
+const future = new SimpleFuture();
+const asyncTask = new Promise<void>((resolve) => {
+    for (let i = 0; i < 1000; i++);
+    future.setResult("Task completed");
+    resolve();
+});
+
+asyncTask.then(() => {
+    console.log("Doing something else...");
+    const result = future.get();
+    console.log("Result: " + result);
+});
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

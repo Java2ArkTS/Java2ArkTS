@@ -1,54 +1,68 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+    let archetype: Runnable;
+    if (runnable.className == "TicketBookingTask") {
+        archetype = new TicketBookingTask(new TicketCounter());
+    } else {
+        archetype = new Thread();
+    }
+    addFunc(runnable, archetype);
+    runnable.run();
 }
 
 class TicketCounter {
-  private ticketsAvailable: any = getClass('number', 10);
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
 
-  public bookTicket(): void {
-    {
-      SynStart(this['synArray']);
-      if (getValues(this.ticketsAvailable) > 0) {
-        setValues(this.ticketsAvailable, getValues(this.ticketsAvailable) - 1);
-        console.log(" booked a ticket. Tickets left: " + getValues(this.ticketsAvailable));
-      } else {
-        console.log("No tickets available for ");
-      }
-      SynEnd(this['synArray']);
+    private ticketsAvailable = new SharedNumber(10);
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "TicketCounter";
+
+    public bookTicket(): void {
+        SynStart(this.syn);
+        if (this.ticketsAvailable.getValue() > 0) {
+            this.ticketsAvailable.setValue(this.ticketsAvailable.getValue() - 1);
+            console.log(" booked a ticket. Tickets left: " + this.ticketsAvailable.getValue());
+        } else {
+            console.log("No tickets available for ");
+        }
+        SynEnd(this.syn);
     }
-  }
 }
 
 class TicketBookingTask implements Runnable {
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-  private ticketCounter: any = getClass('TicketCounter', new TicketCounter());
 
-  constructor(ticketCounter: TicketCounter) {
-    setValues(this.ticketCounter, ticketCounter);
-  }
+    private ticketCounter: TicketCounter;
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "TicketBookingTask";
 
-  run(): void {
-    getValues(this.ticketCounter.bookTicket());
-  }
+    constructor(ticketCounter: TicketCounter) {
+        this.ticketCounter = ticketCounter;
+    }
+
+    run(): void {
+        this.ticketCounter.bookTicket();
+    }
 }
 
 class TicketBookingTest {
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
 
-  public static main(args: string[]): void {
-    const ticketCounter = new TicketCounter();
-    const thread1 = new Thread(new TicketBookingTask(ticketCounter));
-    const thread2 = new Thread(new TicketBookingTask(ticketCounter));
-    const thread3 = new Thread(new TicketBookingTask(ticketCounter));
-    getValues(thread1.start());
-    getValues(thread2.start());
-    getValues(thread3.start());
-  }
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "TicketBookingTest";
+
+    public static main(args: string[]): void {
+        const ticketCounter = new TicketCounter();
+        const thread1 = new Thread(new TicketBookingTask(ticketCounter));
+        const thread2 = new Thread(new TicketBookingTask(ticketCounter));
+        const thread3 = new Thread(new TicketBookingTask(ticketCounter));
+        thread1.start();
+        thread2.start();
+        thread3.start();
+    }
+}
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

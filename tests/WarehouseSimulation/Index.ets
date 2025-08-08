@@ -1,88 +1,90 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+    let archetype: Runnable;
+    if (runnable.className == "Worker") {
+        archetype = new Worker("", new Warehouse(0), false, 0);
+    } else {
+        archetype = new Thread();
+    }
+    addFunc(runnable, archetype);
+    runnable.run();
 }
 
 class Warehouse {
-    private capacity: any = getClass('number', 0);
-    private currentLoad: any = getClass('number', 0);
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Warehouse";
+
+    private readonly capacity: number;
+    private currentLoad = new SharedNumber(0);
 
     constructor(capacity: number) {
-        setValues(this.capacity, capacity);
-        setValues(this.currentLoad, 0);
+        this.capacity = capacity;
     }
 
     store(amount: number, workerName: string): void {
-        {
-            SynStart(this['synArray']);
-            while (getValues(this.currentLoad) + amount > getValues(this.capacity)) {
-                console.log(`${workerName} is waiting to store ${amount} units. Current load: ${getValues(this.currentLoad)}`);
-            }
-            setValues(this.currentLoad, getValues(this.currentLoad) + amount);
-            console.log(`${workerName} stored ${amount} units. Current load: ${getValues(this.currentLoad)}`);
-            SynEnd(this['synArray']);
+        SynStart(this.syn);
+        while (this.currentLoad.getValue() + amount > this.capacity) {
+            console.log(`${workerName} is waiting to store ${amount} units. Current load: ${this.currentLoad.getValue()}`);
         }
+        this.currentLoad.setValue(this.currentLoad.getValue() + amount);
+        console.log(`${workerName} stored ${amount} units. Current load: ${this.currentLoad.getValue()}`);
+        SynEnd(this.syn);
     }
 
     retrieve(amount: number, workerName: string): void {
-        {
-            SynStart(this['synArray']);
-            while (getValues(this.currentLoad) < amount) {
-                console.log(`${workerName} is waiting to retrieve ${amount} units. Current load: ${getValues(this.currentLoad)}`);
-            }
-            setValues(this.currentLoad, getValues(this.currentLoad) - amount);
-            console.log(`${workerName} retrieved ${amount} units. Current load: ${getValues(this.currentLoad)}`);
-            SynEnd(this['synArray']);
+        SynStart(this.syn);
+        while (this.currentLoad.getValue() < amount) {
+            console.log(`${workerName} is waiting to retrieve ${amount} units. Current load: ${this.currentLoad.getValue()}`);
         }
+        this.currentLoad.setValue(this.currentLoad.getValue() - amount);
+        console.log(`${workerName} retrieved ${amount} units. Current load: ${this.currentLoad.getValue()}`);
+        SynEnd(this.syn);
     }
 
     getCurrentLoad(): number {
-        {
-            SynStart(this['synArray']);
-            const load = getValues(this.currentLoad);
-            SynEnd(this['synArray']);
-            return load;
-        }
+        SynStart(this.syn);
+        const load = this.currentLoad.getValue();
+        SynEnd(this.syn);
+        return load;
     }
 }
 
 class Worker implements Runnable {
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Worker";
 
-    private readonly name: any = getClass('string');
-    private readonly warehouse: any = getClass('Warehouse');
-    private readonly isStorer: any = getClass('boolean');
-    private readonly amount: any = getClass('number');
-
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    private readonly name = new SharedString(name);
+    private readonly warehouse: Warehouse;
+    private readonly isStorer = new SharedBoolean(isStorer);
+    private readonly amount = new SharedNumber(amount);
 
     constructor(name: string, warehouse: Warehouse, isStorer: boolean, amount: number) {
-        setValues(this.name, name);
-        setValues(this.warehouse, warehouse);
-        setValues(this.isStorer, isStorer);
-        setValues(this.amount, amount);
+        this.name.setValue(name);
+        this.warehouse = warehouse;
+        this.isStorer.setValue(isStorer);
+        this.amount.setValue(amount);
     }
 
     run(): void {
-        if (getValues(this.isStorer)) {
-            getValues(this.warehouse.store(getValues(this.amount), getValues(this.name)));
+        if (this.isStorer.getValue()) {
+            this.warehouse.store(this.amount.getValue(), this.name.getValue());
         } else {
-            getValues(this.warehouse.retrieve(getValues(this.amount), getValues(this.name)));
+            this.warehouse.retrieve(this.amount.getValue(), this.name.getValue());
         }
     }
 }
 
 class WarehouseSimulation {
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "WarehouseSimulation";
 
     public static main(args: string[]): void {
-        let warehouse = new Warehouse(100);
-        let workers: Thread[] = new Array(10);
+        const warehouse = new Warehouse(100);
+        const workers: Thread[] = new Array(10);
         for (let i = 0; i < workers.length; i++) {
             if (i % 2 === 0) {
                 workers[i] = new Thread(new Worker("Worker " + i, warehouse, true, 30));
@@ -91,6 +93,10 @@ class WarehouseSimulation {
             }
             workers[i].start();
         }
-        console.log("Final load in warehouse: " + getValues(warehouse.getCurrentLoad()) + " units.");
+        console.log("Final load in warehouse: " + warehouse.getCurrentLoad() + " units.");
     }
+}
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

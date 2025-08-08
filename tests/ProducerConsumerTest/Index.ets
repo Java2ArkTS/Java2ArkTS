@@ -1,76 +1,97 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+  let archetype: Runnable;
+  if (runnable.className == "Producer") {
+    archetype = new Producer(new SharedBuffer());
+  } else if (runnable.className == "Consumer") {
+    archetype = new Consumer(new SharedBuffer());
+  } else {
+    archetype = new Thread();
+  }
+  addFunc(runnable, archetype);
+  runnable.run();
 }
 
 class SharedBuffer {
-  private data: any = getClass('number', 0);
-  private isEmpty: any = getClass('boolean', true);
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-
+  private data: number;
+  private isEmpty = new SharedBoolean(true);
+  
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "SharedBuffer";
+  
   public produce(newData: number): void {
-    SynStart(this['synArray']);
-    setValues(this.data, newData);
-    setValues(this.isEmpty, false);
-    console.log("Produced: " + getValues(this.data));
-    SynEnd(this['synArray']);
-  }
-
-  public consume(): number {
-    SynStart(this['synArray']);
-    if (!getValues(this.isEmpty)) {
-      console.log("Consumed: " + getValues(this.data));
-      setValues(this.isEmpty, true);
+    {
+      SynStart(this.syn);
+      this.data = newData;
+      this.isEmpty.setValue(false);
+      console.log("Produced: " + this.data);
+      SynEnd(this.syn);
     }
-    SynEnd(this['synArray']);
-    return getValues(this.data);
+  }
+  
+  public consume(): number {
+    {
+      SynStart(this.syn);
+      if (!this.isEmpty.getValue()) {
+        console.log("Consumed: " + this.data);
+        this.isEmpty.setValue(true);
+      }
+      SynEnd(this.syn);
+      return this.data;
+    }
   }
 }
 
 class Producer implements Runnable {
-  private buffer: SharedBuffer = getClass('SharedBuffer', new SharedBuffer());
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-
+  private buffer: SharedBuffer;
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "Producer";
+  
   constructor(buffer: SharedBuffer) {
-    setValues(this.buffer, buffer);
+    this.buffer = buffer;
   }
 
   run(): void {
     for (let i = 0; i < 10; i++) {
-      getValues(this.buffer.produce(i));
+      this.buffer.produce(i);
     }
   }
 }
 
 class Consumer implements Runnable {
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-  private buffer: SharedBuffer = getClass('SharedBuffer', new SharedBuffer());
-
+  private buffer: SharedBuffer;
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "Consumer";
+  
   constructor(buffer: SharedBuffer) {
-    setValues(this.buffer, buffer);
+    this.buffer = buffer;
   }
 
   run(): void {
     for (let i = 0; i < 10; i++) {
-      getValues(this.buffer.consume());
+      this.buffer.consume();
     }
   }
 }
 
 class ProducerConsumerTest {
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "ProducerConsumerTest";
 
-  public static main(args: string[]): void {
+  static main(args: string[]): void {
     const buffer = new SharedBuffer();
     const producerThread = new Thread(new Producer(buffer));
     const consumerThread = new Thread(new Consumer(buffer));
     producerThread.start();
     consumerThread.start();
   }
+}
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

@@ -1,13 +1,21 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+    let archetype: Runnable;
+    if (runnable.className == "Pi") {
+        archetype = new Pi(new Mutexes(), 0); // Assuming default values for instantiation
+    } else {
+        archetype = new Thread();
+    }
+    addFunc(runnable, archetype);
+    runnable.run();
 }
 
 class DiningPhilosophers {
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "DiningPhilosophers";
 
     public static main(args: string[]): void {
         const mutexes = new Mutexes();
@@ -16,69 +24,82 @@ class DiningPhilosophers {
         const thread2 = new Thread(new Pi(mutexes, 2));
         const thread3 = new Thread(new Pi(mutexes, 3));
         const thread4 = new Thread(new Pi(mutexes, 4));
-        getValues(thread0.start());
-        getValues(thread1.start());
-        getValues(thread2.start());
-        getValues(thread3.start());
-        getValues(thread4.start());
+        thread0.start();
+        thread1.start();
+        thread2.start();
+        thread3.start();
+        thread4.start();
     }
 }
 
 class Mutexes {
-    public chopsticks: any = getClass('boolean[]', [true, true, true, true, true]);
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+
+    public chopsticks = [new SharedBoolean(true), new SharedBoolean(true), new SharedBoolean(true), new SharedBoolean(true), new SharedBoolean(true)];
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Mutexes";
+
+    constructor(syn: any) {
+        this.syn = syn;
+    }
 
     public getLeftChopstick(i: number): boolean {
-        SynStart(getValues(this['synArray']));
-        if (getValues(this.chopsticks[i])) {
-            setValues(this.chopsticks[i], false);
-            SynEnd(getValues(this['synArray']));
+        SynStart(this.syn);
+        if (this.chopsticks[i].getValue()) {
+            this.chopsticks[i].setValue(false);
+            SynEnd(this.syn);
             return true;
         } else {
-            SynEnd(getValues(this['synArray']));
+            SynEnd(this.syn);
             return false;
         }
     }
 
     public getRightChopstick(i: number): boolean {
-        SynStart(getValues(this['synArray']));
-        if (getValues(this.chopsticks[(i + 1) % 5])) {
-            setValues(this.chopsticks[(i + 1) % 5], false);
-            SynEnd(getValues(this['synArray']));
+        SynStart(this.syn);
+        if (this.chopsticks[(i + 1) % 5].getValue()) {
+            this.chopsticks[(i + 1) % 5].setValue(false);
+            SynEnd(this.syn);
             return true;
         } else {
-            SynEnd(getValues(this['synArray']));
+            SynEnd(this.syn);
             return false;
         }
     }
 
     public returnChopsticks(i: number): void {
-        SynStart(getValues(this['synArray']));
-        setValues(this.chopsticks[i], true);
-        setValues(this.chopsticks[(i + 1) % 5], true);
-        SynEnd(getValues(this['synArray']));
+        SynStart(this.syn);
+        this.chopsticks[i].setValue(true);
+        this.chopsticks[(i + 1) % 5].setValue(true);
+        SynEnd(this.syn);
     }
 }
 
 class Pi implements Runnable {
-    public mutexes: any = getClass('Mutexes', new Mutexes());
-    public i: any = getClass('number', 0);
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+
+    public mutexes: Mutexes;
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Pi";
+
+    public i = new SharedNumber(0);
 
     constructor(mutexes: Mutexes, i: number) {
-        setValues(this.mutexes, mutexes);
-        setValues(this.i, i);
+        this.mutexes = mutexes;
+        this.i.setValue(i);
     }
 
     public run(): void {
         while (true) {
-            getValues(this.mutexes.getLeftChopstick(getValues(this.i)));
-            getValues(this.mutexes.getRightChopstick(getValues(this.i)));
-            console.log("P" + getValues(this.i) + " is eating.");
-            getValues(this.mutexes.returnChopsticks(getValues(this.i)));
-            console.log("P" + getValues(this.i) + " is thinking.");
+            this.mutexes.getLeftChopstick(this.i.getValue());
+            this.mutexes.getRightChopstick(this.i.getValue());
+            console.log("P" + this.i.getValue() + " is eating.");
+            this.mutexes.returnChopsticks(this.i.getValue());
+            console.log("P" + this.i.getValue() + " is thinking.");
         }
     }
+}
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

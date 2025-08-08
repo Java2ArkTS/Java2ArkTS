@@ -1,69 +1,83 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+    let archetype: Runnable;
+    if (runnable.className == "Vehicle") {
+        archetype = new Vehicle("Archetype Vehicle", new Bridge(1));
+    } else {
+        archetype = new Thread();
+    }
+    addFunc(runnable, archetype);
+    runnable.run();
 }
 
 class Bridge {
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
-    private capacity: any = getClass('number', 0);
-    private vehicles: any = getClass('Array', []);
-    private count: any = getClass('number', 0);
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Bridge";
+
+    private capacity: number;
+    private vehicles: string[];
+    private count = new SharedNumber(0);
 
     constructor(capacity: number) {
-        setValues(this.capacity, capacity);
-        setValues(this.vehicles, new Array(capacity));
-        setValues(this.count, 0);
+        this.capacity = capacity;
+        this.vehicles = new Array<string>(capacity);
     }
 
-    cross(vehicleName: string): void {
-        {
-            SynStart(this['synArray']);
-            while (getValues(this.count) >= getValues(this.capacity)) {
-                console.log(vehicleName + " is waiting to cross the bridge.");
-            }
-            setValues(this.vehicles[getValues(this.count)], vehicleName);
-            setValues(this.count, getValues(this.count) + 1);
-            console.log(vehicleName + " is crossing the bridge.");
-            for (let i = 0; i < 1000; i++);
-            setValues(this.count, getValues(this.count) - 1);
-            console.log(vehicleName + " has crossed the bridge.");
-            for (let i = 0; i < getValues(this.count); i++) {
-                setValues(this.vehicles[i], getValues(this.vehicles[i + 1]));
-            }
-            setValues(this.vehicles[getValues(this.count)], null);
-            SynEnd(this['synArray']);
+    public cross(vehicleName: string): void {
+        SynStart(this.syn);
+        while (this.count.getValue() >= this.capacity) {
+            console.log(vehicleName + " is waiting to cross the bridge.");
         }
+        this.vehicles[this.count.getValue()] = vehicleName;
+        this.count.setValue(this.count.getValue() + 1);
+        console.log(vehicleName + " is crossing the bridge.");
+
+        for (let i = 0; i < 1000; i++);
+        
+        this.count.setValue(this.count.getValue() - 1);
+        console.log(vehicleName + " has crossed the bridge.");
+
+        for (let i = 0; i < this.count.getValue(); i++) {
+            this.vehicles[i] = this.vehicles[i + 1];
+        }
+        this.vehicles[this.count.getValue()] = null;
+        SynEnd(this.syn);
     }
 }
 
 class Vehicle implements Runnable {
-    private name: any = getClass('string');
-    private bridge: any = getClass('Bridge');
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    private name: SharedString;
+    private bridge: Bridge;
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Vehicle";
 
     constructor(name: string, bridge: Bridge) {
-        setValues(this.name, name);
-        setValues(this.bridge, bridge);
+        this.name = new SharedString(name);
+        this.bridge = bridge;
     }
 
     run(): void {
-        getValues(this.bridge.cross(getValues(this.name)));
+        this.bridge.cross(this.name.getValue());
     }
 }
 
 class Car {
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Car";
 
     public static main(args: string[]): void {
         const bridge = new Bridge(2);
         for (let i = 1; i <= 5; i++) {
-            const vehicleThread = Thread(new Vehicle("Vehicle " + i, bridge));
-            getValues(vehicleThread.start());
+            const vehicleThread = new Thread(new Vehicle(`Vehicle ${i}`, bridge));
+            vehicleThread.start();
         }
     }
+}
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

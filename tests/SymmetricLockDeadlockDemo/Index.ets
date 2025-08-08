@@ -1,123 +1,127 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import {
+    SynStart,
+    SynEnd,
+    wait,
+    notify,
+    SharedBoolean,
+    SharedString,
+    SharedNumber,
+    Syc,
+    isMainThread,
+    addFunc,
+    Runnable,
+    Thread
+} from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+    let archetype: Runnable;
+    if (runnable.className == "ConcurrencyCheckTask1") {
+        archetype = new ConcurrencyCheckTask1();
+    } else if (runnable.className == "ConcurrencyCheckTask2") {
+        archetype = new ConcurrencyCheckTask2();
+    } else {
+        archetype = new Thread();
+    }
+    addFunc(runnable, archetype);
+    runnable.run();
 }
 
 class ConcurrencyCheckTask1 implements Runnable {
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
 
-  run(): void {
-    console.log("ConcurrencyCheckTask1 started!");
-    while (true) {
-      {
-        SynStart(getValues(lock1['synArray']));
-        {
-          SynStart(getValues(lock2['synArray']));
-          console.log("Hello1");
-          SynEnd(getValues(lock2['synArray']));
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "ConcurrencyCheckTask1";
+
+    constructor(syn: Syc) {
+        this.syn = syn;
+    }
+
+    run(): void {
+        console.log("ConcurrencyCheckTask1 started!");
+        while (true) {
+            {
+                SynStart(this.syn);
+                {
+                    SynStart(lock1.syn);
+                    {
+                        SynStart(lock2.syn);
+                        console.log("Hello1");
+                        SynEnd(lock2.syn);
+                    }
+                    SynEnd(lock1.syn);
+                }
+                SynEnd(this.syn);
+            }
         }
-        SynEnd(getValues(lock1['synArray']));
-      }
     }
-  }
 }
 
-class SimpleThreadExample {
-  private static counter: any = getClass('number', 0);
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
+class ConcurrencyCheckTask2 implements Runnable {
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "ConcurrencyCheckTask2";
 
-  public static main(args: string[]): void {
-    const thread1: Thread = new Thread(new SimpleThreadExample.CounterIncrementer());
-    const thread2: Thread = new Thread(new SimpleThreadExample.CounterIncrementer());
-    thread1.start();
-    thread2.start();
-    console.log("Final counter value: " + getValues(SimpleThreadExample.counter));
-  }
-
-  static CounterIncrementer = class implements Runnable {
     run(): void {
-      for (let i = 0; i < 1000; i++) {
-        getValues(this.incrementCounter());
-      }
+        console.log("ConcurrencyCheckTask2 started!");
+        while (true) {
+            {
+                SynStart(lock2.syn);
+                {
+                    SynStart(lock1.syn);
+                    console.log("Hello2");
+                    SynEnd(lock1.syn);
+                }
+                SynEnd(lock2.syn);
+            }
+        }
     }
-
-    private incrementCounter(): void {
-      SynStart(SimpleThreadExample.CounterIncrementer);
-      try {
-        setValues(SimpleThreadExample.counter, getValues(SimpleThreadExample.counter) + 1);
-      } finally {
-        SynEnd(SimpleThreadExample.CounterIncrementer);
-      }
-    }
-  }
 }
 
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+class SymmetricLockDeadlockDemo {
 
-const ADD_COUNT = 10000;
+    static lock1 = {};
+    static lock2 = {};
 
-class Listener {}
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "SymmetricLockDeadlockDemo";
 
-class SynchronizationOnMutableFieldDemo {
-  private listeners: any = getClass('Listener[]', []);
-  private size: any = getClass('number', 0);
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-
-  static async main(args: string[]): Promise<void> {
-    const demo = new SynchronizationOnMutableFieldDemo();
-    const thread1 = new Thread(demo.getConcurrencyCheckTask());
-    thread1.start();
-    const thread2 = new Thread(demo.getConcurrencyCheckTask());
-    thread2.start();
-
-    await thread1.join();
-    await thread2.join();
-
-    const actualSize = getValues(demo.size);
-    const expectedSize = ADD_COUNT * 2;
-    if (getValues(actualSize) !== expectedSize) {
-      console.error(`Lost update on mutable field! actual ${getValues(actualSize)} expected ${expectedSize}.`);
-    } else {
-      console.log("Got the expected size!");
+    static main(args: string[]): void {
+        const thread1 = new Thread(new ConcurrencyCheckTask1());
+        thread1.start();
+        const thread2 = new Thread(new ConcurrencyCheckTask2());
+        thread2.start();
     }
-  }
+}
 
-  addListener(listener: Listener): void {
-    SynStart(this['synArray']);
-    if (getValues(this.size) === this.listeners.length) {
-      const newCapacity = (this.listeners.length === 0) ? 1 : this.listeners.length * 2;
-      const newListeners = new Array<Listener>(newCapacity);
-      for (let i = 0; i < getValues(this.size); i++) {
-        newListeners[i] = this.listeners[i];
-      }
-      setValues(this.listeners, newListeners);
-    }
-    setValues(this.listeners[getValues(this.size)++], listener);
-    SynEnd(this['synArray']);
-  }
-
-  getConcurrencyCheckTask(): Runnable {
-    return new ConcurrencyCheckTask(this);
-  }
-
-  private class ConcurrencyCheckTask implements Runnable {
-    private parent: any = getClass('SynchronizationOnMutableFieldDemo', parent);
-
-    constructor(parent: SynchronizationOnMutableFieldDemo) {
-      this.parent = parent;
-    }
+class ConcurrencyCheckTask1 implements Runnable {
 
     run(): void {
-      console.log("ConcurrencyCheckTask started!");
-      for (let i = 0; i < ADD_COUNT; ++i) {
-        getValues(this.parent.addListener(new Listener()));
-      }
-      console.log("ConcurrencyCheckTask stopped!");
+        console.log("ConcurrencyCheckTask1 started!");
+        while (true) {
+            synchronized(SymmetricLockDeadlockDemo.lock1, () => {
+                synchronized(SymmetricLockDeadlockDemo.lock2, () => {
+                    console.log("Hello1");
+                });
+            });
+        }
     }
-  }
+}
+
+class ConcurrencyCheckTask2 implements Runnable {
+
+    run(): void {
+        console.log("ConcurrencyCheckTask2 started!");
+        while (true) {
+            synchronized(SymmetricLockDeadlockDemo.lock2, () => {
+                synchronized(SymmetricLockDeadlockDemo.lock1, () => {
+                    console.log("Hello2");
+                });
+            });
+        }
+    }
+}
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

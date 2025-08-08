@@ -1,87 +1,117 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+  let archetype: Runnable;
+  if (runnable.className == "Reader") {
+    archetype = new Reader(new SharedResource());
+  } else if (runnable.className == "Writer") {
+    archetype = new Writer(new SharedResource(), 0);
+  } else {
+    archetype = new Thread();
+  }
+  addFunc(runnable, archetype);
+  runnable.run();
 }
 
 class SharedResource {
-    private data: any = getClass('number', 0);
-    private isWriting: any = getClass('boolean', false);
-    private readers: any = getClass('number', 0);
 
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    private data = new SharedNumber(0);
+
+    private isWriting = new SharedBoolean(false);
+
+    private readers = new SharedNumber(0);
+
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "SharedResource";
 
     public async readData(): Promise<void> {
-        while (getValues(this.isWriting)) {
+        while (this.isWriting.getValue()) {
             for (let i = 0; i < 1000; i++);
         }
         {
-            SynStart(this['synArray']);
-            setValues(this.readers, getValues(this.readers) + 1);
-            SynEnd(this['synArray']);
+            SynStart(this.syn);
+            this.readers.setValue(this.readers.getValue() + 1);
+            SynEnd(this.syn);
         }
-        console.log("Reading data: " + getValues(this.data));
+        console.log("Reading data: " + this.data.getValue());
         {
-            SynStart(this['synArray']);
-            setValues(this.readers, getValues(this.readers) - 1);
-            SynEnd(this['synArray']);
+            SynStart(this.syn);
+            this.readers.setValue(this.readers.getValue() - 1);
+            SynEnd(this.syn);
         }
     }
 
     public async writeData(newData: number): Promise<void> {
-        while (getValues(this.readers) > 0 || getValues(this.isWriting)) {
+        while (this.readers.getValue() > 0 || this.isWriting.getValue()) {
             for (let i = 0; i < 1000; i++);
         }
         {
-            SynStart(this['synArray']);
-            setValues(this.isWriting, true);
-            SynEnd(this['synArray']);
-        }
-        console.log("Writing data: " + newData);
-        {
-            SynStart(this['synArray']);
-            setValues(this.data, newData);
-            SynEnd(this['synArray']);
-        }
-        {
-            SynStart(this['synArray']);
-            setValues(this.isWriting, false);
-            SynEnd(this['synArray']);
+            SynStart(this.syn);
+            this.isWriting.setValue(true);
+            console.log("Writing data: " + newData);
+            this.data.setValue(newData);
+            this.isWriting.setValue(false);
+            SynEnd(this.syn);
         }
     }
 }
+
 
 class Reader implements Runnable {
-    private sharedResource: SharedResource;
 
-    constructor(sharedResource: SharedResource) {
-        this.sharedResource = sharedResource;
+    private resource: SharedResource;
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Reader";
+
+    constructor(resource: SharedResource) {
+        this.resource = resource;
     }
 
-    public run(): void {
-        getValues(this.sharedResource.readData().catch(e => console.error(e)));
+    run(): void {
+        try {
+            this.resource.readData();
+        } catch (e) {
+            if (e instanceof Error) {
+                console.error(e.stack);
+            }
+        }
     }
 }
+
 
 class Writer implements Runnable {
-    private sharedResource: SharedResource;
-    private newData: any = getClass('number', this.newData);
 
-    constructor(sharedResource: SharedResource, newData: number) {
-        this.sharedResource = sharedResource;
-        this.newData = newData;
+    private resource: SharedResource;
+
+    private newData = new SharedNumber(0);
+
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Writer";
+
+    constructor(resource: SharedResource, newData: number) {
+        this.resource = resource;
+        this.newData.setValue(newData);
     }
 
-    public run(): void {
-        getValues(this.sharedResource.writeData(this.newData).catch(e => console.error(e)));
+    run(): void {
+        try {
+            this.resource.writeData(this.newData.getValue());
+        } catch (e) {
+            if (e instanceof InterruptedException) {
+                console.error(e);
+            }
+        }
     }
 }
 
+
 class Main {
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Main";
 
     public static main(args: string[]): void {
         const resource = new SharedResource();
@@ -93,4 +123,8 @@ class Main {
         const writerThread = new Thread(new Writer(resource, newData));
         writerThread.start();
     }
+}
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

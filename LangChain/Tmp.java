@@ -1,40 +1,44 @@
-package p0;
-import java.util.List;
+public class WrongCounterDemo {
+    private static final int INC_COUNT = 100000000;
 
-public class Tested {
-    public static String _get_correct_indent_level(List<String> lines, int lineIndex) {
-        if (lineIndex < 0 || lineIndex >= lines.size()) {
-            return "";
+    private volatile int counter = 0;
+
+    public static void main(String[] args) throws Exception {
+        WrongCounterDemo demo = new WrongCounterDemo();
+
+        System.out.println("Start task thread!");
+        Thread thread1 = new Thread(demo.getConcurrencyCheckTask());
+        thread1.start();
+        Thread thread2 = new Thread(demo.getConcurrencyCheckTask());
+        thread2.start();
+
+        thread1.join();
+        thread2.join();
+
+        int actualCounter = demo.counter;
+        int expectedCount = INC_COUNT * 2;
+        if (actualCounter != expectedCount) {
+            // Even if volatile is added to the counter field,
+            // On my dev machine, it's almost must occur!
+            // Simple and safe solution:
+            //   use AtomicInteger
+            System.err.printf("Fuck! Got wrong count!! actual %s, expected: %s.%n", actualCounter, expectedCount);
+        } else {
+            System.out.println("Wow... Got right count!");
         }
-
-        String currentLine = lines.get(lineIndex);
-        if (lineIndex == 0) {
-            return "";
-        }
-
-        String previousLine = lines.get(lineIndex - 1);
-        if (!previousLine.isEmpty() && !previousLine.trim().endsWith(",")) {
-            return getIndentation(previousLine);
-        }
-
-        if (previousLine.trim().startsWith("class ") || previousLine.trim().startsWith("def ") || previousLine.endsWith(":")) {
-            return getIndentation(previousLine) + "  ";
-        }
-
-        for (String line : lines) {
-            if (line.length() >= 8 && line.substring(0, 8).trim().isEmpty()) {
-                return getIndentation(line);
-            }
-        }
-
-        return "";
     }
 
-    private static String getIndentation(String line) {
-        int index = 0;
-        while (index < line.length() && Character.isWhitespace(line.charAt(index))) {
-            index++;
+    ConcurrencyCheckTask getConcurrencyCheckTask() {
+        return new ConcurrencyCheckTask();
+    }
+
+    private class ConcurrencyCheckTask implements Runnable {
+        @Override
+        @SuppressWarnings("NonAtomicOperationOnVolatileField")
+        public void run() {
+            for (int i = 0; i < INC_COUNT; ++i) {
+                ++counter;
+            }
         }
-        return line.substring(0, index);
     }
 }

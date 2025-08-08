@@ -1,154 +1,167 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+  let archetype: Runnable;
+  if (runnable.className == "Customer") {
+    archetype = new Customer(new Semaphores(), 0);
+  } else if (runnable.className == "Server") {
+    archetype = new Server(new Semaphores());
+  } else {
+    archetype = new Thread();
+  }
+  addFunc(runnable, archetype);
+  runnable.run();
 }
 
 class QueuingMachine {
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "QueuingMachine";
 
-    public static main(args: string[]): void {
-        const semaphores = new Semaphores();
-        const server = new Thread(new Server(semaphores));
-        const customer1 = new Thread(new Customer(semaphores, 1));
-        const customer2 = new Thread(new Customer(semaphores, 2));
-        const customer3 = new Thread(new Customer(semaphores, 3));
-        const customer4 = new Thread(new Customer(semaphores, 4);
-        getValues(server.start());
-        getValues(customer1.start());
-        getValues(customer2.start());
-        getValues(customer3.start());
-        getValues(customer4.start());
-    }
+  public static main(args: string[]): void {
+    const semaphores = new Semaphores();
+    const server = new Thread(new Server(semaphores));
+    const customer1 = new Thread(new Customer(semaphores, 1));
+    const customer2 = new Thread(new Customer(semaphores, 2));
+    const customer3 = new Thread(new Customer(semaphores, 3));
+    const customer4 = new Thread(new Customer(semaphores, 4));
+    server.start();
+    customer1.start();
+    customer2.start();
+    customer3.start();
+    customer4.start();
+  }
 }
 
 class Semaphores {
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
-    
-    public empty: any = getClass('number', 10);
-    public mutex: any = getClass('boolean', true);
-    public full: any = getClass('number', 0);
-    public service: any = getClass('boolean', false);
+  public empty = new SharedNumber(10);
+  public mutex = new SharedBoolean(true);
+  public full = new SharedNumber(0);
+  public service = new SharedBoolean(false);
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "Semaphores";
 
-    public pEmpty(): boolean {
-        SynStart(this['synArray']);
-        if (getValues(this.empty) > 0) {
-            setValues(this.empty, getValues(this.empty) - 1);
-            SynEnd(this['synArray']);
-            return true;
-        } else {
-            SynEnd(this['synArray']);
-            return false;
-        }
-    }
+  constructor() {
+    this.syn = new Syc();
+  }
 
-    public pFull(): boolean {
-        SynStart(this['synArray']);
-        if (getValues(this.full) > 0) {
-            setValues(this.full, getValues(this.full) - 1);
-            SynEnd(this['synArray']);
-            return true;
-        } else {
-            SynEnd(this['synArray']);
-            return false;
-        }
+  public pEmpty(): boolean {
+    SynStart(this.syn);
+    if (this.empty.getValue() > 0) {
+      this.empty.setValue(this.empty.getValue() - 1);
+      SynEnd(this.syn);
+      return true;
+    } else {
+      SynEnd(this.syn);
+      return false;
     }
+  }
 
-    public pMutex(): boolean {
-        SynStart(this['synArray']);
-        if (getValues(this.mutex)) {
-            setValues(this.mutex, false);
-            SynEnd(this['synArray']);
-            return true;
-        } else {
-            SynEnd(this['synArray']);
-            return false;
-        }
+  public pFull(): boolean {
+    SynStart(this.syn);
+    if (this.full.getValue() > 0) {
+      this.full.setValue(this.full.getValue() - 1);
+      SynEnd(this.syn);
+      return true;
+    } else {
+      SynEnd(this.syn);
+      return false;
     }
+  }
 
-    public pService(): boolean {
-        SynStart(this['synArray']);
-        if (getValues(this.service)) {
-            setValues(this.service, false);
-            SynEnd(this['synArray']);
-            return true;
-        } else {
-            SynEnd(this['synArray']);
-            return false;
-        }
+  public pMutex(): boolean {
+    SynStart(this.syn);
+    if (this.mutex.getValue()) {
+      this.mutex.setValue(false);
+      SynEnd(this.syn);
+      return true;
+    } else {
+      SynEnd(this.syn);
+      return false;
     }
+  }
 
-    public vEmpty(): void {
-        SynStart(this['synArray']);
-        setValues(this.empty, getValues(this.empty) + 1);
-        SynEnd(this['synArray']);
+  public pService(): boolean {
+    SynStart(this.syn);
+    if (this.service.getValue()) {
+      this.service.setValue(false);
+      SynEnd(this.syn);
+      return true;
+    } else {
+      SynEnd(this.syn);
+      return false;
     }
+  }
 
-    public vFull(): void {
-        SynStart(this['synArray']);
-        setValues(this.full, getValues(this.full) + 1);
-        SynEnd(this['synArray']);
-    }
+  public vEmpty(): void {
+    SynStart(this.syn);
+    this.empty.setValue(this.empty.getValue() + 1);
+    SynEnd(this.syn);
+  }
 
-    public vMutex(): void {
-        SynStart(this['synArray']);
-        setValues(this.mutex, true);
-        SynEnd(this['synArray']);
-    }
+  public vFull(): void {
+    SynStart(this.syn);
+    this.full.setValue(this.full.getValue() + 1);
+    SynEnd(this.syn);
+  }
 
-    public vService(): void {
-        SynStart(this['synArray']);
-        setValues(this.service, true);
-        SynEnd(this['synArray']);
-    }
+  public vMutex(): void {
+    SynStart(this.syn);
+    this.mutex.setValue(true);
+    SynEnd(this.syn);
+  }
+
+  public vService(): void {
+    SynStart(this.syn);
+    this.service.setValue(true);
+    SynEnd(this.syn);
+  }
 }
 
 class Customer implements Runnable {
+  public semaphores: Semaphores;
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "Customer";
+  public rank = new SharedNumber(0);
 
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
-    public semaphores: any = getClass('Semaphores', new Semaphores());
-    public rank: any = getClass('number', 0);
+  constructor(semaphores: Semaphores, rank: number) {
+    this.semaphores = semaphores;
+    this.rank.setValue(rank);
+  }
 
-    constructor(semaphores: Semaphores, rank: number) {
-        setValues(this.semaphores, semaphores);
-        setValues(this.rank, rank);
-    }
-
-    public run(): void {
-        while (!getValues(this.semaphores.pEmpty())) {
-        }
-        while (!getValues(this.semaphores.pMutex())) {
-        }
-        console.log("Customer " + getValues(this.rank) + " takes a number.");
-        getValues(this.semaphores.vMutex());
-        getValues(this.semaphores.vFull());
-        while (!getValues(this.semaphores.pService())) {
-        }
-        console.log("Customer " + getValues(this.rank) + " gets service.");
-    }
+  public run(): void {
+    while (!this.semaphores.pEmpty()) {}
+    while (!this.semaphores.pMutex()) {}
+    console.log("Customer " + this.rank.getValue() + " takes a number.");
+    this.semaphores.vMutex();
+    this.semaphores.vFull();
+    while (!this.semaphores.pService()) {}
+    console.log("Customer " + this.rank.getValue() + " gets service.");
+  }
 }
 
 class Server implements Runnable {
+  public semaphores: Semaphores;
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "Server";
 
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
-    public semaphores: Semaphores = getClass('Semaphores', new Semaphores());
+  constructor(semaphores: Semaphores) {
+    this.semaphores = semaphores;
+  }
 
-    constructor(semaphores: Semaphores) {
-        setValues(this.semaphores, semaphores);
+  public run(): void {
+    while (true) {
+      while (!this.semaphores.pFull()) {}
+      this.semaphores.vEmpty();
+      this.semaphores.vService();
+      console.log("Server serves.");
     }
+  }
+}
 
-    public run(): void {
-        while (true) {
-            while (!getValues(this.semaphores.pFull())) {
-            }
-            getValues(this.semaphores.vEmpty());
-            getValues(this.semaphores.vService());
-            console.log("Server serves.");
-        }
-    }
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

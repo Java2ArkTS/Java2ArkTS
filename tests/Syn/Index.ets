@@ -1,14 +1,22 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread } from './ThreadBridge';
+import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+    let archetype: Runnable;
+    if (runnable.className == "TestThread") {
+        archetype = new TestThread();
+    } else {
+        archetype = new Thread();
+    }
+    addFunc(runnable, archetype);
+    runnable.run();
 }
 
 class TestThread implements Runnable {
-    private tickets: any = getClass('number', 10000);
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+
+    private tickets = new SharedNumber(10000);
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "TestThread";
 
     public run(): void {
         while (true) {
@@ -17,14 +25,13 @@ class TestThread implements Runnable {
     }
 
     public sale(): void {
-        SynStart(1, this.synArray);
-        if (getValues(this.tickets) > 0) {
-            if (getValues(this.tickets) % 100 === 0) {
-                console.log("is sailing ticket" + getValues(this.tickets));
-            }
-            setValues(this.tickets, getValues(this.tickets) - 1);
+        SynStart(this.syn);
+        if (this.tickets.getValue() > 0) {
+            if (this.tickets.getValue() % 100 === 0)
+                console.log("is sailing ticket" + this.tickets.getValue());
+            this.tickets.setValue(this.tickets.getValue() - 1);
         }
-        SynEnd(1, this.synArray);
+        SynEnd(this.syn);
     }
 
     public sum(a: number, b: number): number {
@@ -33,8 +40,9 @@ class TestThread implements Runnable {
 }
 
 class Syn {
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "Syn";
 
     public static main(args: string[]): void {
         const tt = new TestThread();
@@ -43,4 +51,8 @@ class Syn {
         new Thread(tt).start();
         new Thread(tt).start();
     }
+}
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

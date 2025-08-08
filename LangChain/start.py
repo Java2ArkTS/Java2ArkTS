@@ -4,6 +4,7 @@ import streamlit as st
 import os
 from io import BytesIO
 import subprocess
+import json
 
 st.title('LLM-Based Java Concurrent Program to ArkTS Converter')
 
@@ -48,51 +49,39 @@ def deleteZhu(mycode):
 if st.button('run'):
     ast_result = run_jar_with_input()
     st.write(ast_result)
-    file_path = 'tmp.txt'
+    file_path = 'result.json'
     with open(file_path, 'r') as file:
-        code = file.read()
-        origin_code = code
-    file_path = 'flag.txt'
-    with open(file_path, 'r') as file:
-        flag = int(file.read())
+        result = json.load(file)
+    code = result['ast_output']
+    origin_code = code
+    flag = result['flag']
     flag = flag % 4
     if flag / 2 == 1:
         code = ''
-        with open('classnum.txt', 'r') as file:
-            class_num = int(file.read())
-        refer = ("import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from "
+        refer = ("import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from "
                  "'./ThreadBridge';\n\n") + code
-        for i in range(class_num):
-            class_file_path = 'class'+str(i)+'.txt'
-            with open(class_file_path, 'r') as file:
-                class_code = file.read()
-            class_flag_path = 'class_flag' + str(i) + '.txt'
-            # st.code(class_code)
-            with open(class_flag_path, 'r') as file:
-                class_flag = int(file.read())
-                print(class_flag)
-                tmp = ToTaskNew(class_flag, refer, origin_code).run(class_code) + '\n\n\n'
-                tmp = deleteZhu(tmp)
-                code += tmp
-                # st.code(tmp)
+        for c in result['classes']:
+            class_code = c['class_code']
+            class_flag = c['class_flag']
+            tmp = ToTaskNew(class_flag, refer, origin_code).run(class_code) + '\n\n\n'
+            tmp = deleteZhu(tmp)
+            code += tmp
+            # st.code(tmp)
     else:
         code = ToTs().getStart(code)
 
-    if flag % 2 == 1:
-        code = ToTs().getPublic(code)
-
     if flag / 2 == 1:
-        code = """
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
-
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
-}
-
-        """ + code
+        refer = ("import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from "
+                    "'./ThreadBridge';\n\n")
+        wash = deleteZhu(ToTaskNew().addWash(refer + code))
+        code = refer + wash + '\n\n' + code
     code = ToTs().getClean(code)
     code = deleteZhu(code)
+    main_code = """if (isMainThread()) {
+  // You can put the entry of your code here to test.
+}"""
+    code = code + '\n\n' + main_code
+
     last_code = code
     error_flag = 0
     for _ in range(3):

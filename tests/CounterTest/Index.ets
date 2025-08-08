@@ -1,86 +1,96 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+  let archetype: Runnable;
+  if (runnable.className == "DecrementTask") {
+    archetype = new DecrementTask(new Counter());
+  } else {
+    archetype = new Thread();
+  }
+  addFunc(runnable, archetype);
+  runnable.run();
 }
 
 class Counter {
-
-  private count: any = getClass('number', 0);
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
+  private count = new SharedNumber(0);
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "Counter";
 
   public increment(): void {
-    SynStart(this['synArray']);
-    setValues(this.count, getValues(this.count) + 1);
-    console.log(" incremented count to " + getValues(this.count));
-    SynEnd(this['synArray']);
+    {
+      SynStart(this.syn);
+      this.count.setValue(this.count.getValue() + 1);
+      console.log(" incremented count to " + this.count.getValue());
+      SynEnd(this.syn);
+    }
   }
 
   public decrement(): void {
-    SynStart(this['synArray']);
-    setValues(this.count, getValues(this.count) - 1);
-    console.log(" decremented count to " + getValues(this.count));
-    SynEnd(this['synArray']);
+    {
+      SynStart(this.syn);
+      this.count.setValue(this.count.getValue() - 1);
+      console.log(" decremented count to " + this.count.getValue());
+      SynEnd(this.syn);
+    }
   }
 
   public getCount(): number {
-    let result: number;
-    SynStart(this['synArray']);
-    setValues(result, getValues(this.count));
-    SynEnd(this['synArray']);
-    return getValues(result);
-  }
-}
-
-class IncrementTask implements Runnable {
-
-  private counter: any = getClass('Counter', new Counter());
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-
-  constructor(counter: Counter) {
-    setValues(this.counter, counter);
-  }
-
-  run(): void {
-    for (let i = 0; i < 10; i++) {
-      getValues(this.counter.increment());
+    {
+      SynStart(this.syn);
+      const result = this.count.getValue();
+      SynEnd(this.syn);
+      return result;
     }
   }
 }
 
-class DecrementTask implements Runnable {
+class ExampleClass {
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "ExampleClass";
 
-  private counter: any = getClass('Counter', new Counter());
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
+  constructor() {
+    // constructor logic
+  }
+
+  someMethod() {
+    // method logic
+  }
+}
+
+class DecrementTask implements Runnable {
+  private counter: Counter;
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "DecrementTask";
 
   constructor(counter: Counter) {
-    setValues(this.counter, counter);
+    this.counter = counter;
   }
 
   run(): void {
     for (let i = 0; i < 10; i++) {
-      getValues(this.counter.decrement());
+      this.counter.decrement();
     }
   }
 }
 
 class CounterTest {
-
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "CounterTest";
 
   public static main(args: string[]): void {
     const counter = new Counter();
-    const incrementTask = new IncrementTask(counter);
-    const decrementTask = new DecrementTask(counter);
-    const incrementThread = new Thread(incrementTask);
-    const decrementThread = new Thread(decrementTask);
+    const incrementThread = new Thread(new IncrementTask(counter));
+    const decrementThread = new Thread(new DecrementTask(counter));
     incrementThread.start();
     decrementThread.start();
-    console.log("Final count: " + getValues(counter.getCount()));
+    console.log("Final count: " + counter.getCount());
   }
+}
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

@@ -1,33 +1,39 @@
-class Tested {
-    
-    public static getCorrectIndentLevel(lines: string[], lineIndex: number): string {
-        if (lineIndex < 0 || lineIndex >= lines.length) {
-            return "";
-        }
-        const currentLine = lines[lineIndex];
-        if (lineIndex === 0) {
-            return "";
-        }
-        const previousLine = lines[lineIndex - 1];
-        if (!previousLine.isEmpty() && !previousLine.trim().endsWith(",")) {
-            return this.getIndentation(previousLine);
-        }
-        if (previousLine.trim().startsWith("class ") || previousLine.trim().startsWith("def ") || previousLine.endsWith(":")) {
-            return this.getIndentation(previousLine) + "  ";
-        }
-        for (const line of lines) {
-            if (line.length >= 8 && line.substring(0, 8).trim().isEmpty()) {
-                return this.getIndentation(line);
-            }
-        }
-        return "";
-    }
+class WrongCounterDemo {
+  private static readonly INC_COUNT = 100000000;
+  private counter = 0;
 
-    private static getIndentation(line: string): string {
-        let index = 0;
-        while (index < line.length && /\s/.test(line.charAt(index))) {
-            index++;
-        }
-        return line.substring(0, index);
+  public static async main() {
+    const demo = new WrongCounterDemo();
+    console.log("Start task thread!");
+    const thread1 = new Promise<void>((resolve) => {
+      const task = demo.getConcurrencyCheckTask();
+      task().then(resolve);
+    });
+    const thread2 = new Promise<void>((resolve) => {
+      const task = demo.getConcurrencyCheckTask();
+      task().then(resolve);
+    });
+    await Promise.all([thread1, thread2]);
+    const actualCounter = demo.counter;
+    const expectedCount = WrongCounterDemo.INC_COUNT * 2;
+    if (actualCounter !== expectedCount) {
+      console.error(`Error! Got wrong count!! actual ${actualCounter}, expected: ${expectedCount}.`);
+    } else {
+      console.log("Wow... Got right count!");
     }
+  }
+
+  getConcurrencyCheckTask() {
+    return async () => {
+      for (let i = 0; i < WrongCounterDemo.INC_COUNT; ++i) {
+        ++this.counter;
+      }
+    };
+  }
+}
+
+WrongCounterDemo.main();
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

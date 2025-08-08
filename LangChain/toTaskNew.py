@@ -17,7 +17,7 @@ def deleteZhu(mycode):
 
 
 class ToTaskNew:
-    def __init__(self, flag, refer, origin_code):
+    def __init__(self, flag=0, refer="", origin_code=""):
         self.model = ChatOpenAI(temperature=0, model="gpt-4o")
         self.origin_code = origin_code
         # self.model = ChatOpenAI(temperature=0)
@@ -45,6 +45,49 @@ Directly output the modified class without any additional text.
             ("system", self.template_changeFunc),
             ("user", "{code}")
         ])
+
+    def addWash(self, code):
+        refer = """export function sharedWash(runnable: Runnable) {
+  let archetype: Runnable;
+  if (runnable.className == ...) {
+    archetype = new ...;
+  } else {
+    archetype = new Thread();
+  }
+  addFunc(runnable, archetype);
+  runnable.run();
+}
+"""
+        template = """
+You are a TypeScript expert.
+Given the sharedWash function below, extend the function so that it handles only classes that implement the Runnable interface.
+
+For each class that implements Runnable, add an if...else if branch to compare runnable.className.
+Instantiate the corresponding class inside the branch and assign it to the archetype variable.
+
+If no match is found, use the default Thread class in the else block.
+
+Ensure correct instantiation of each class that implement the Runnable interface(e.g., new ClassName()).
+
+Do not change the function signature. Only modify the body to include the logic for all Runnable implementations.
+
+Here is the start code:
+
+{refer}
+
+Output only the completed function. No extra text. Output only the code!
+✅ Only include classes that explicitly implement the Runnable interface.
+❌ Do NOT include any class that does not implement Runnable. No exceptions.
+Only include classes that implement the Runnable interface, do not include any other classes.
+Under no circumstance should a class that does not implement Runnable be added to the if...else chain.
+"""
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", template),
+            ("user", "{code}")
+        ])
+        chain = prompt | self.model | self.output_parser
+        return chain.invoke({"code": code, "refer": refer})
+
 
     def getMessage(self):
         template = """
@@ -127,16 +170,16 @@ Find code blocks marked with the synchronized keyword and remove the synchronize
 
 At the beginning of the block, add:
 
-SynStart(synchronized_object['synArray']);
+SynStart(synchronized_object.syn);
 At the end of the block, add:
 
-SynEnd(synchronized_object['synArray']);
+SynEnd(synchronized_object.syn);
 Replace wait() calls with:
 
-wait(synchronized_object['synArray']);
+wait(synchronized_object.syn);
 Replace notify() calls with:
 
-notify(synchronized_object['synArray']);
+notify(synchronized_object.syn);
 Example:
 Input:
 {input}
@@ -144,7 +187,7 @@ Input:
 Output:
 {output}
 
-Ensure that SynStart(synchronized_object['synArray']) and SynEnd(synchronized_object['synArray']) are inside the code block.
+Ensure that SynStart(synchronized_object.syn) and SynEnd(synchronized_object.syn) are inside the code block.
 
 Code context (Do not add extra imports):
 {refer}
@@ -160,9 +203,9 @@ Output only the modified class. No extra text. Output only the code!
         }
         """, "output": """
         {
-            SynStart(obj['synArray']);
-            wait(obj['synArray']);
-            SynEnd(obj['synArray']);
+            SynStart(obj.syn);
+            wait(obj.syn);
+            SynEnd(obj.syn);
         }
         """, "refer": self.refer})
 
@@ -182,41 +225,43 @@ Output only the modified class. No extra text. Output only the code!
 
     def changeDing(self, code):
         template = """
-        You are a highly skilled TypeScript programmer.
+        You are a skilled TypeScript code transformer.
 
-Modify the user's input class using the following function:
+Your task is to transform only the member variables declared in the current TypeScript class whose types are boolean, string, or number 
+into their corresponding SharedBoolean, SharedString, and SharedNumber wrapper types.
 
-getClass(type: string, inClass?: any): any
-This function takes a type and a value, returning an object of type any.
+Do not transform:
+Local variables (inside functions)
+Function parameters
+External variables or variables from other objects
+Member variables of other classes or objects
+Any variable that is not a class member declared in this class
 
-Modification Rules:
+Please follow these transformation rules strictly:
+1. Initialization:
+Convert
+public count: number = 5;
 
-Update member variable definitions using getClass, while keeping their initial values.
+to
+public count = new SharedNumber(5);
 
-Do not modify methods or variables inside methods.
+2. Accessing values:
+Replace all reads or usages of these variables in expressions with this.varName.getValue()
+Example:
+const total = this.count + 10;
 
-Examples:
-Input:
+becomes
+const total = this.count.getValue() + 10;
 
-private a: number = 0;
-Output:
+3. Updating values:
+Replace all assignments to these variables with this.varName.setValue(value)
+Example:
+this.count = 100;
 
-private a: any = getClass('number', 0);
-Input:
+becomes
+this.count.setValue(100);
 
-public s: string = 'test';
-Output:
-
-public s: any = getClass('string', 'test');
-Input:
-
-public test: Test = new Test();
-Output:
-
-public test: Test = getClass('Test', new Test());
-Code context (Do not add extra imports):
-{refer}
-
+Do not modify the logic of the code. Only refactor variable types and access/mutation style.
 Do not write additional functions. Output only the modified class. No extra text. Output only the code!
         """
         prompt = ChatPromptTemplate.from_messages([
@@ -224,7 +269,7 @@ Do not write additional functions. Output only the modified class. No extra text
             ("user", "{code}")
         ])
         chain = prompt | self.model | self.output_parser
-        return chain.invoke({"code": code, "refer": self.refer})
+        return chain.invoke({"code": code})
 
     def changeSetGet(self, code):
         template = """
@@ -318,15 +363,18 @@ Output only the modified class—no extra text!
 
 You are a highly skilled TypeScript programmer.
 
-Modify the user's provided class by adding the following two member variables:
+Modify the user's provided class by adding the following three member variables:
 
-public synArray: any = getSyc();
-public sharedType: string = "object";
+public syn: Syc = new Syc();
+public static staticSyn: Syc = new Syc();
+public className: string = "className"; ← Replace "ClassName" with the actual name of the class being modified.
+
 Ensure that:
-
-The variables are added as class members.
-
-The output contains only the modified class—no extra text, no analysis, and no markdown formatting (```).
+Insert these variables as class members.
+Set className to the exact name of the current class.
+If the class already contains member variables with the same names (syn, staticSyn, or className), 
+replace them regardless of their access modifier (e.g., public, private, or protected).
+Output only the modified class—no explanations, extra text, or markdown formatting.
         """
         prompt = ChatPromptTemplate.from_messages([
             ("system", template),
@@ -336,11 +384,11 @@ The output contains only the modified class—no extra text, no analysis, and no
         return chain.invoke({"code": code})
 
     def run(self, code):
-        if self.flag % 2 == 1:
-            st.write("start analysing code")
-            message = self.getMessage()
-            st.write("start initializing")
-            code = deleteZhu(self.addChu(code, message))
+        # if self.flag % 2 == 1:
+        #     st.write("start analysing code")
+        #     message = self.getMessage()
+        #     st.write("start initializing")
+        #     code = deleteZhu(self.addChu(code, message))
         if int(self.flag / 2) == 1:
             st.write("start dealing with synchronized")
             code = deleteZhu(self.changeFuncSyn(code))
@@ -348,10 +396,7 @@ The output contains only the modified class—no extra text, no analysis, and no
         st.write("start converting to TS")
         code = deleteZhu(self.getStart(code))
         st.write("start using set and get")
-        code = deleteZhu(self.changeSetGet(code))
-        if self.flag % 2 == 1:
-            st.write("start changing variables")
-            code = deleteZhu(self.changeDing(code))
+        code = deleteZhu(self.changeDing(code))
         st.write("start adding variables")
         code = deleteZhu(self.addCheng(code))
         # st.code(code)

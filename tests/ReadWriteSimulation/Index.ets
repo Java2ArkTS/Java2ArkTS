@@ -1,85 +1,96 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
 
-export function sharedWash(threadId: number) {
-    let archetype = Thread.runnableList[threadId];
-    archetype.run();
+export function sharedWash(runnable: Runnable) {
+    let archetype: Runnable;
+    if (runnable.className == "ReaderWorker") {
+        archetype = new ReaderWorker("", new SharedData());
+    } else if (runnable.className == "WriterWorker") {
+        archetype = new WriterWorker("", new SharedData());
+    } else {
+        archetype = new Thread();
+    }
+    addFunc(runnable, archetype);
+    runnable.run();
 }
 
 class CustomReadWriteLock {
-    private readers: any = getClass('number', 0);
-    private writing: any = getClass('boolean', false);
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    private readers = new SharedNumber(0);
+    private writing = new SharedBoolean(false);
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "CustomReadWriteLock";
 
-    public lockRead() {
-        SynStart(this['synArray']);
-        while (getValues(this.writing)) {
+    public lockRead(): void {
+        SynStart(this.syn);
+        while (this.writing.getValue()) {
         }
-        setValues(this.readers, getValues(this.readers) + 1);
-        SynEnd(this['synArray']);
+        this.readers.setValue(this.readers.getValue() + 1);
+        SynEnd(this.syn);
     }
 
-    public unlockRead() {
-        SynStart(this['synArray']);
-        setValues(this.readers, getValues(this.readers) - 1);
-        if (getValues(this.readers) === 0) {
+    public unlockRead(): void {
+        SynStart(this.syn);
+        this.readers.setValue(this.readers.getValue() - 1);
+        if (this.readers.getValue() === 0) {
         }
-        SynEnd(this['synArray']);
+        SynEnd(this.syn);
     }
 
-    public lockWrite() {
-        SynStart(this['synArray']);
-        while (getValues(this.readers) > 0 || getValues(this.writing)) {
+    public lockWrite(): void {
+        SynStart(this.syn);
+        while (this.readers.getValue() > 0 || this.writing.getValue()) {
         }
-        setValues(this.writing, true);
-        SynEnd(this['synArray']);
+        this.writing.setValue(true);
+        SynEnd(this.syn);
     }
 
-    public unlockWrite() {
-        SynStart(this['synArray']);
-        setValues(this.writing, false);
-        SynEnd(this['synArray']);
+    public unlockWrite(): void {
+        SynStart(this.syn);
+        this.writing.setValue(false);
+        SynEnd(this.syn);
     }
 }
 
 class SharedData {
-    private lock: any = getClass('CustomReadWriteLock', new CustomReadWriteLock());
-    private data: any = getClass('number', 0);
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    private lock: CustomReadWriteLock = new CustomReadWriteLock();
+    private data = new SharedNumber(0);
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "SharedData";
 
     public readData(readerName: string): void {
-        getValues(this.lock.lockRead());
-        console.log(readerName + " is reading data: " + getValues(this.data));
-        for (let j = 0; j < 1000; j++) ;
-        getValues(this.lock.unlockRead());
+        this.lock.lockRead();
+        console.log(`${readerName} is reading data: ${this.data.getValue()}`);
+        for (let j = 0; j < 1000; j++);
+        this.lock.unlockRead();
     }
 
     public writeData(writerName: string, newData: number): void {
-        getValues(this.lock.lockWrite());
-        console.log(writerName + " is writing data: " + getValues(newData));
-        setValues(this.data, newData);
-        for (let j = 0; j < 1000; j++) ;
-        getValues(this.lock.unlockWrite());
+        this.lock.lockWrite();
+        console.log(`${writerName} is writing data: ${newData}`);
+        this.data.setValue(newData);
+        for (let j = 0; j < 1000; j++);
+        this.lock.unlockWrite();
     }
 }
 
 class ReaderWorker implements Runnable {
-    private readonly name: any = getClass('string', '');
-    private readonly sharedData: any = getClass('SharedData', new SharedData());
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "ReaderWorker";
+    private readonly name = new SharedString("");
+    private readonly sharedData: SharedData;
 
     constructor(name: string, sharedData: SharedData) {
-        setValues(this.name, name);
-        setValues(this.sharedData, sharedData);
+        this.name.setValue(name);
+        this.sharedData = sharedData;
     }
 
     run(): void {
         for (let i = 0; i < 5; i++) {
-            getValues(this.sharedData.readData(getValues(this.name)));
+            this.sharedData.readData(this.name.getValue());
             try {
-                getValues(Thread.sleep(200));
+                Thread.sleep(200);
             } catch (e) {
                 console.error(e);
             }
@@ -88,19 +99,20 @@ class ReaderWorker implements Runnable {
 }
 
 class WriterWorker implements Runnable {
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
-    private readonly name: any = getClass('string', '');
-    private readonly sharedData: any = getClass('SharedData', new SharedData());
+    private readonly name = new SharedString("");
+    private readonly sharedData: SharedData;
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "WriterWorker";
 
     constructor(name: string, sharedData: SharedData) {
-        setValues(this.name, name);
-        setValues(this.sharedData, sharedData);
+        this.name.setValue(name);
+        this.sharedData = sharedData;
     }
 
     run(): void {
         for (let i = 0; i < 5; i++) {
-            getValues(this.sharedData.writeData(getValues(this.name), i));
+            this.sharedData.writeData(this.name.getValue(), i);
             try {
                 Thread.sleep(200);
             } catch (e) {
@@ -111,19 +123,23 @@ class WriterWorker implements Runnable {
 }
 
 class ReadWriteSimulation {
-    public synArray: any = getSyc();
-    public sharedType: string = "object";
+    public syn: Syc = new Syc();
+    public static staticSyn: Syc = new Syc();
+    public className: string = "ReadWriteSimulation";
 
-    static main(args: string[]) {
+    static main(args: string[]): void {
         const sharedData = new SharedData();
-        const reader1 = new Thread(new ReaderWorker('Reader 1', sharedData));
-        const reader2 = new Thread(new ReaderWorker('Reader 2', sharedData));
-        const writer1 = new Thread(new WriterWorker('Writer 1', sharedData));
-        const writer2 = new Thread(new WriterWorker('Writer 2', sharedData));
-
+        const reader1 = new Thread(new ReaderWorker("Reader 1", sharedData));
+        const reader2 = new Thread(new ReaderWorker("Reader 2", sharedData));
+        const writer1 = new Thread(new WriterWorker("Writer 1", sharedData));
+        const writer2 = new Thread(new WriterWorker("Writer 2", sharedData));
         reader1.start();
         reader2.start();
         writer1.start();
         writer2.start();
     }
+}
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }

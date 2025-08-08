@@ -1,95 +1,88 @@
-import { setValues, getSyc, getClass, getValues, SynStart, SynEnd, addFunc, Runnable, Thread, wait, notify } from './ThreadBridge';
+import {
+  SynStart,
+  SynEnd,
+  wait,
+  notify,
+  SharedBoolean,
+  SharedString,
+  SharedNumber,
+  Syc,
+  isMainThread,
+  addFunc,
+  Runnable,
+  Thread
+} from './ThreadBridge';
 
-export function sharedWash(threadId: number){
-  let archetype = Thread.runnableList[threadId];
-  archetype.run();
+export function sharedWash(runnable: Runnable) {
+  let archetype: Runnable;
+  if (runnable.className == "HightPriority") {
+    archetype = new HightPriority();
+  } else if (runnable.className == "LowPriority") {
+    archetype = new LowPriority();
+  } else {
+    archetype = new Thread();
+  }
+  addFunc(runnable, archetype);
+  runnable.run();
 }
 
 export class PriorityDemo {
-  public static count: any = getClass('number', 0);
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "PriorityDemo";
+  
+  public static count = new SharedNumber(0);
+  
   public static main(args: string[]): void {
-    const high = new HighPriority();
-    const low = new LowPriority();
-    setValues(high.setPriority, getValues(Thread.MAX_PRIORITY));
-    setValues(low.setPriority, getValues(Thread.MIN_PRIORITY));
-    getValues(low.start());
-    getValues(high.start());
+    const high: Thread = new HightPriority();
+    const low: Thread = new LowPriority();
+    high.setPriority(Thread.MAX_PRIORITY);
+    low.setPriority(Thread.MIN_PRIORITY);
+    low.start();
+    high.start();
   }
-}
-
-class HighPriority extends Thread {
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-
-  public run(): void {
-    while (true) {
-      synchronized(PriorityDemo, () => {
-        getValues(synchronize_method1());
-      });
-    }
-  }
-}
-
-class LowPriority extends Thread {
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-
-  public run(): void {
-    while (true) {
-      synchronized(PriorityDemo, () => {
-        getValues(synchronize_method2());
-      });
-    }
-  }
-}
-
-function synchronize_method1(): void {
-  // 高优先级线程执行的逻辑
-}
-
-function synchronize_method2(): void {
-  // 低优先级线程执行的逻辑
 }
 
 class HightPriority extends Thread {
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-
-  public run() {
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "HightPriority";
+  
+  public run(): void {
     while (true) {
       {
-        SynStart(PriorityDemo.synArray);
-        setValues(PriorityDemo.count, getValues(PriorityDemo.count) + 1);
-        if (getValues(PriorityDemo.count) > 1000000) {
+        SynStart(PriorityDemo.syn);
+        PriorityDemo.count++;
+        if (PriorityDemo.count > 1000000) {
           console.log("HightPriority is complete!");
-          SynEnd(PriorityDemo.synArray);
           break;
         }
-        SynEnd(PriorityDemo.synArray);
+        SynEnd(PriorityDemo.syn);
       }
     }
   }
 }
 
 class LowPriority extends Thread {
-  public synArray: any = getSyc();
-  public sharedType: string = "object";
-
-  public run() {
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = "LowPriority";
+  
+  public run(): void {
     while (true) {
       {
-        getValues(SynStart(PriorityDemo['synArray']));
-        setValues(PriorityDemo.count, getValues(PriorityDemo.count) + 1);
-        if (getValues(PriorityDemo.count) > 1000000) {
+        SynStart(PriorityDemo.syn);
+        PriorityDemo.count.setValue(PriorityDemo.count.getValue() + 1);
+        if (PriorityDemo.count.getValue() > 1000000) {
           console.log("LowPriority is complete!");
-          getValues(SynEnd(PriorityDemo['synArray']));
           break;
         }
-        getValues(SynEnd(PriorityDemo['synArray']));
+        SynEnd(PriorityDemo.syn);
       }
     }
   }
+}
+
+if (isMainThread()) {
+  // You can put the entry of your code here to test.
 }
