@@ -1,5 +1,9 @@
 # README
 
+## News
+
+Compatible with API 10 and above versions
+
 ## LLM-Based Java Concurrent Program to ArkTS Converter
 
 ## ABSTRACT

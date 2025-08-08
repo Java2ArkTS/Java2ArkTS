@@ -37,11 +37,11 @@ def run_jar_with_input():
 def deleteZhu(mycode):
     if mycode[0] == '`':
         lines = mycode.splitlines()
-        # 使用切片操作去掉第一行和最后一行
+
         lines = lines[1:-1]
         if lines[-1][0] == '`':
             lines = lines[0:-1]
-        # 将处理后的列表重新拼接为字符串
+
         result_string = "\n".join(lines)
         return result_string
     else:
@@ -103,6 +103,5 @@ def run():
     return code
 
 if __name__ == "__main__":
-    # 设置你要处理的目录 # 可以修改为你实际的路径
-    process_all_java_files(root_dir)
+    pass
 
