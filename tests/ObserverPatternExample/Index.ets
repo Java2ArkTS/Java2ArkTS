@@ -1,3 +1,5 @@
+import { isMainThread, SynStart, SynEnd, Syc } from "@kit.ArkTS";
+
 interface Observer {
     update(message: string): void;
 }
@@ -9,30 +11,30 @@ interface Subject {
 }
 
 class ConcreteSubject implements Subject {
-    private readonly lock = new Object();
-    private readonly observers: Observer[] = new Array(10);
+    private readonly lock = new Syc();
+    private readonly observers: Observer[] = [];
     private size = 0;
 
     registerObserver(observer: Observer): void {
-        synchronized(this.lock, () => {
-            this.synchronizeMethod1();
-        });
+        SynStart(this.lock);
+        this.synchronizeMethod1(observer);
+        SynEnd(this.lock);
     }
 
     removeObserver(observer: Observer): void {
-        synchronized(this.lock, () => {
-            this.synchronizeMethod2();
-        });
+        SynStart(this.lock);
+        this.synchronizeMethod2(observer);
+        SynEnd(this.lock);
     }
 
     notifyObservers(message: string): void {
         let snapshot: Observer[];
-        synchronized(this.lock, () => {
-            this.synchronizeMethod3();
-        });
+        SynStart(this.lock);
+        snapshot = [...this.observers];
+        SynEnd(this.lock);
         for (const observer of snapshot) {
-            if (observer != null) {
-                new Thread(() => observer.update(message)).start();
+            if (observer) {
+                setTimeout(() => observer.update(message), 0);
             }
         }
     }
@@ -42,16 +44,17 @@ class ConcreteSubject implements Subject {
         this.notifyObservers(newState);
     }
 
-    private synchronizeMethod1(): void {
-        // Implementation for synchronize method 1
+    private synchronizeMethod1(observer: Observer): void {
+        this.observers.push(observer);
+        this.size++;
     }
 
-    private synchronizeMethod2(): void {
-        // Implementation for synchronize method 2
-    }
-
-    private synchronizeMethod3(): void {
-        // Implementation for synchronize method 3
+    private synchronizeMethod2(observer: Observer): void {
+        const index = this.observers.indexOf(observer);
+        if (index !== -1) {
+            this.observers.splice(index, 1);
+            this.size--;
+        }
     }
 }
 
@@ -83,5 +86,5 @@ class ObserverPatternExample {
 ObserverPatternExample.main();
 
 if (isMainThread()) {
-  // You can put the entry of your code here to test.
+    // You can put the entry of your code here to test.
 }

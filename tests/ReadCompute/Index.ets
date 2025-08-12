@@ -1,12 +1,25 @@
-import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
+import {
+  SynStart,
+  SynEnd,
+  wait,
+  notify,
+  SharedBoolean,
+  SharedString,
+  SharedNumber,
+  Syc,
+  isMainThread,
+  addFunc,
+  Runnable,
+  Thread,
+} from './ThreadBridge';
 
 export function sharedWash(runnable: Runnable) {
   let archetype: Runnable;
-  if (runnable.className == "P") {
+  if (runnable.className === 'P') {
     archetype = new P(new Semaphores());
-  } else if (runnable.className == "P1") {
+  } else if (runnable.className === 'P1') {
     archetype = new P1(new Semaphores());
-  } else if (runnable.className == "P2") {
+  } else if (runnable.className === 'P2') {
     archetype = new P2(new Semaphores());
   } else {
     archetype = new Thread();
@@ -16,12 +29,11 @@ export function sharedWash(runnable: Runnable) {
 }
 
 class ReadCompute {
-
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "ReadCompute";
+  public className: string = 'ReadCompute';
 
-  public static main(args: string[]): void {
+  static main(args: string[]): void {
     const semaphores = new Semaphores();
     const p = new Thread(new P(semaphores));
     const p1 = new Thread(new P1(semaphores));
@@ -33,13 +45,13 @@ class ReadCompute {
 }
 
 class Semaphores {
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = 'Semaphores';
 
   public mutex = new SharedBoolean(true);
   public full = new SharedNumber(0);
   public empty = new SharedNumber(50);
-  public syn: Syc = new Syc();
-  public static staticSyn: Syc = new Syc();
-  public className: string = "Semaphores";
 
   public pMutex(): boolean {
     SynStart(this.syn);
@@ -97,10 +109,9 @@ class Semaphores {
 }
 
 class P implements Runnable {
-
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "P";
+  public className: string = 'P';
 
   public semaphores: Semaphores;
 
@@ -108,13 +119,11 @@ class P implements Runnable {
     this.semaphores = semaphores;
   }
 
-  public run(): void {
+  run(): void {
     while (true) {
-      while (!this.semaphores.pEmpty()) {
-      }
-      while (!this.semaphores.pMutex()) {
-      }
-      console.log("P reads data from device into the buffer.");
+      while (!this.semaphores.pEmpty()) {}
+      while (!this.semaphores.pMutex()) {}
+      console.log('P reads data from device into the buffer.');
       this.semaphores.vMutex();
       this.semaphores.vFull();
     }
@@ -122,57 +131,52 @@ class P implements Runnable {
 }
 
 class P1 implements Runnable {
-
   public semaphores: Semaphores;
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "P1";
+  public className: string = 'P1';
 
   constructor(semaphores: Semaphores) {
     this.semaphores = semaphores;
   }
 
-  public run(): void {
+  run(): void {
     while (true) {
-      while (!this.semaphores.pFull()) {
-      }
-      console.log("P1 gets one data from the buffer.");
-      while (!this.semaphores.pFull()) {
-      }
-      console.log("P1 gets one data from the buffer.");
-      console.log("P1 computes the datas.");
+      while (!this.semaphores.pFull()) {}
+      console.log('P1 gets one data from the buffer.');
+      while (!this.semaphores.pFull()) {}
+      console.log('P1 gets one data from the buffer.');
+      console.log('P1 computes the datas.');
       this.semaphores.vEmpty();
-      console.log("P1 prints the result.");
+      console.log('P1 prints the result.');
       this.semaphores.vEmpty();
-      console.log("P1 prints the result.");
+      console.log('P1 prints the result.');
     }
   }
 }
 
 class P2 implements Runnable {
-
-  public semaphores: Semaphores;
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "P2";
+  public className: string = 'P2';
+
+  public semaphores: Semaphores;
 
   constructor(semaphores: Semaphores) {
     this.semaphores = semaphores;
   }
 
-  public run(): void {
+  run(): void {
     while (true) {
-      while (!this.semaphores.pFull()) {
-      }
-      console.log("P2 gets one data from the buffer.");
-      while (!this.semaphores.pFull()) {
-      }
-      console.log("P2 gets one data from the buffer.");
-      console.log("P2 computes the datas.");
+      while (!this.semaphores.pFull()) {}
+      console.log('P2 gets one data from the buffer.');
+      while (!this.semaphores.pFull()) {}
+      console.log('P2 gets one data from the buffer.');
+      console.log('P2 computes the datas.');
       this.semaphores.vEmpty();
-      console.log("P2 prints the result.");
+      console.log('P2 prints the result.');
       this.semaphores.vEmpty();
-      console.log("P2 prints the result.");
+      console.log('P2 prints the result.');
     }
   }
 }

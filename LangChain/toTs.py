@@ -69,7 +69,6 @@ Please correct the TypeScript code provided by the user.
     def getClean(self, code):
         # code = self.getExim(code)
         st.write("start repairing detail")
-        model = ChatOpenAI()
         template = """
         Format the TypeScript code.
 Do not change any code logic.
@@ -77,28 +76,36 @@ Ensure that only the runnable code is output—no additional text.
 {code}
         """
         prompt = ChatPromptTemplate.from_template(template)
-        chain = prompt | model | self.output_parser
+        chain = prompt | self.model | self.output_parser
         return chain.invoke({"code": code})
 
     def getFix(self, code, error_message):
+        filename = "ThreadBridge.ets"
+        with open(filename, 'r') as file:
+            Ku = file.read()
         st.write("start repairing code")
         # st.code("开始编译修正")
         sys_template = """
         You are a highly skilled TypeScript programmer.
 You need to fix the TypeScript code provided by the user based on the error messages.
 If there is a conflict between imports and the code below, prioritize the imports.
-Output only the modified, runnable code—no markdown formatting (```) and no additional text.
-        """
+The following external code is provided for reference only: ThreadBridge — do not modify this external code.
+Your task is to modify only the provided source code, not the external reference code.
+Output only the complete modified, runnable source code—exclude the external code entirely.
+Do not use markdown formatting (```) and do not add any additional text."""
         user_template = """
         Code:
 {code}
 
 Error Message:
 {error_message}
+
+Reference External Code (do not modify):
+{ThreadBridge}
         """
         prompt = ChatPromptTemplate.from_messages([
             ("system", sys_template),
             ("user", user_template)
         ])
         chain = prompt | self.model | self.output_parser
-        return chain.invoke({"code": code, "error_message": error_message})
+        return chain.invoke({"code": code, "error_message": error_message, "ThreadBridge": Ku})

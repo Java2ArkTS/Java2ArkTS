@@ -2,7 +2,7 @@ import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumb
 
 export function sharedWash(runnable: Runnable) {
     let archetype: Runnable;
-    if (runnable.className == "Vehicle") {
+    if (runnable.className === "Vehicle") {
         archetype = new Vehicle("Archetype Vehicle", new Bridge(1));
     } else {
         archetype = new Thread();
@@ -18,44 +18,44 @@ class Bridge {
 
     private capacity: number;
     private vehicles: string[];
-    private count = new SharedNumber(0);
+    private count = new SharedNumber();
+    private readonly synchronized_object = new Syc();
 
     constructor(capacity: number) {
         this.capacity = capacity;
         this.vehicles = new Array<string>(capacity);
+        this.count.setValue(0);
     }
 
     public cross(vehicleName: string): void {
-        SynStart(this.syn);
+        SynStart(this.synchronized_object);
         while (this.count.getValue() >= this.capacity) {
-            console.log(vehicleName + " is waiting to cross the bridge.");
+            console.log(`${vehicleName} is waiting to cross the bridge.`);
         }
         this.vehicles[this.count.getValue()] = vehicleName;
         this.count.setValue(this.count.getValue() + 1);
-        console.log(vehicleName + " is crossing the bridge.");
-
+        console.log(`${vehicleName} is crossing the bridge.`);
         for (let i = 0; i < 1000; i++);
-        
         this.count.setValue(this.count.getValue() - 1);
-        console.log(vehicleName + " has crossed the bridge.");
-
+        console.log(`${vehicleName} has crossed the bridge.`);
         for (let i = 0; i < this.count.getValue(); i++) {
             this.vehicles[i] = this.vehicles[i + 1];
         }
         this.vehicles[this.count.getValue()] = null;
-        SynEnd(this.syn);
+        SynEnd(this.synchronized_object);
     }
 }
 
 class Vehicle implements Runnable {
-    private name: SharedString;
-    private bridge: Bridge;
     public syn: Syc = new Syc();
     public static staticSyn: Syc = new Syc();
     public className: string = "Vehicle";
 
+    private name = new SharedString();
+    private bridge: Bridge;
+
     constructor(name: string, bridge: Bridge) {
-        this.name = new SharedString(name);
+        this.name.setValue(name);
         this.bridge = bridge;
     }
 

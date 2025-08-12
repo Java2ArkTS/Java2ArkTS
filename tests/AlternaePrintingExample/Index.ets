@@ -1,10 +1,23 @@
-import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
+import {
+  SynStart,
+  SynEnd,
+  wait,
+  notify,
+  SharedBoolean,
+  SharedString,
+  SharedNumber,
+  Syc,
+  isMainThread,
+  addFunc,
+  Runnable,
+  Thread,
+} from './ThreadBridge';
 
 export function sharedWash(runnable: Runnable) {
   let archetype: Runnable;
-  if (runnable.className == "OddNumberTask") {
+  if (runnable.className === "OddNumberTask") {
     archetype = new OddNumberTask(new NumberPrinter());
-  } else if (runnable.className == "EvenNumberTask") {
+  } else if (runnable.className === "EvenNumberTask") {
     archetype = new EvenNumberTask(new NumberPrinter());
   } else {
     archetype = new Thread();
@@ -28,19 +41,19 @@ class AlternatePrintingExample {
 }
 
 class NumberPrinter {
-  private number = new SharedNumber(1);
-  private readonly maxNumber: number = 10;
-  private isOddTurn = new SharedBoolean(true);
-  
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
   public className: string = "NumberPrinter";
 
+  private number = new SharedNumber(1);
+  private readonly maxNumber = new SharedNumber(10);
+  private isOddTurn = new SharedBoolean(true);
+
   public printOdd(): void {
     SynStart(this.syn);
-    while (this.number.getValue() <= this.maxNumber) {
+    while (this.number.getValue() <= this.maxNumber.getValue()) {
       if (this.isOddTurn.getValue() && this.number.getValue() % 2 !== 0) {
-        console.log(Thread.currentThread().getName() + " - Odd: " + this.number.getValue());
+        console.log("Odd: " + this.number.getValue());
         this.number.setValue(this.number.getValue() + 1);
         this.isOddTurn.setValue(false);
       }
@@ -50,9 +63,9 @@ class NumberPrinter {
 
   public printEven(): void {
     SynStart(this.syn);
-    while (this.number.getValue() <= this.maxNumber) {
+    while (this.number.getValue() <= this.maxNumber.getValue()) {
       if (!this.isOddTurn.getValue() && this.number.getValue() % 2 === 0) {
-        console.log(Thread.currentThread().getName() + " - Even: " + this.number.getValue());
+        console.log("Even: " + this.number.getValue());
         this.number.setValue(this.number.getValue() + 1);
         this.isOddTurn.setValue(true);
       }
@@ -65,6 +78,7 @@ class OddNumberTask implements Runnable {
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
   public className: string = "OddNumberTask";
+
   private readonly printer: NumberPrinter;
 
   constructor(printer: NumberPrinter) {
@@ -78,6 +92,7 @@ class OddNumberTask implements Runnable {
 
 class EvenNumberTask implements Runnable {
   private readonly printer: NumberPrinter;
+
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
   public className: string = "EvenNumberTask";
@@ -92,5 +107,5 @@ class EvenNumberTask implements Runnable {
 }
 
 if (isMainThread()) {
-  // You can put the entry of your code here to test.
+  AlternatePrintingExample.main([]);
 }

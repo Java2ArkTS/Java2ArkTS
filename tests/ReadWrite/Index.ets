@@ -1,11 +1,30 @@
-import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
+import {
+  SynStart,
+  SynEnd,
+  wait,
+  notify,
+  SharedBoolean,
+  SharedString,
+  SharedNumber,
+  Syc,
+  isMainThread,
+  addFunc,
+  Runnable,
+  Thread,
+} from './ThreadBridge';
 
 export function sharedWash(runnable: Runnable) {
   let archetype: Runnable;
-  if (runnable.className == "Reader") {
-    archetype = new Reader(new Semaphores(), 0); // Example rank, adjust as needed
-  } else if (runnable.className == "Writer") {
-    archetype = new Writer(new Semaphores(), 0); // Example rank, adjust as needed
+  if (runnable.className === 'Reader') {
+    archetype = new Reader(
+      (runnable as Reader).semaphores,
+      (runnable as Reader).rank.getValue()
+    );
+  } else if (runnable.className === 'Writer') {
+    archetype = new Writer(
+      (runnable as Writer).semaphores,
+      (runnable as Writer).rank.getValue()
+    );
   } else {
     archetype = new Thread();
   }
@@ -13,10 +32,10 @@ export function sharedWash(runnable: Runnable) {
   runnable.run();
 }
 
-class ReadWrite {
+export class ReadWrite {
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "ReadWrite";
+  public className: string = 'ReadWrite';
 
   public static main(args: string[]): void {
     const semaphores = new Semaphores();
@@ -33,17 +52,18 @@ class ReadWrite {
   }
 }
 
-class Semaphores {
-  public count = new SharedNumber(0);
+class Semaphores extends Syc {
+  public count = new SharedNumber();
   public rw = new SharedBoolean(true);
   public w = new SharedBoolean(true);
   public mutex = new SharedBoolean(true);
-  public syn: Syc = new Syc();
-  public static staticSyn: Syc = new Syc();
-  public className: string = "Semaphores";
 
   constructor() {
-    // Initialization is handled in the variable declaration
+    super();
+    this.count.setValue(0);
+    this.rw.setValue(true);
+    this.w.setValue(true);
+    this.mutex.setValue(true);
   }
 
   public Pw(): boolean {
@@ -58,15 +78,57 @@ class Semaphores {
     }
   }
 
-  // other methods omitted for brevity
+  public Pmutex(): boolean {
+    SynStart(this);
+    if (this.mutex.getValue()) {
+      this.mutex.setValue(false);
+      SynEnd(this);
+      return true;
+    } else {
+      SynEnd(this);
+      return false;
+    }
+  }
+
+  public Prw(): boolean {
+    SynStart(this);
+    if (this.rw.getValue()) {
+      this.rw.setValue(false);
+      SynEnd(this);
+      return true;
+    } else {
+      SynEnd(this);
+      return false;
+    }
+  }
+
+  public Vmutex(): void {
+    SynStart(this);
+    this.mutex.setValue(true);
+    SynEnd(this);
+  }
+
+  public Vw(): void {
+    SynStart(this);
+    this.w.setValue(true);
+    SynEnd(this);
+  }
+
+  public Vrw(): void {
+    SynStart(this);
+    this.rw.setValue(true);
+    SynEnd(this);
+  }
 }
 
 class Reader implements Runnable {
   public semaphores: Semaphores;
-  public rank = new SharedNumber(rank);
+
+  public rank = new SharedNumber();
+
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "Reader";
+  public className: string = 'Reader';
 
   constructor(semaphores: Semaphores, rank: number) {
     this.semaphores = semaphores;
@@ -74,24 +136,48 @@ class Reader implements Runnable {
   }
 
   public run(): void {
-    // implementation
+    while (true) {
+      while (!this.semaphores.Pw()) {}
+      while (!this.semaphores.Pmutex()) {}
+      if (this.semaphores.count.getValue() === 0) {
+        while (!this.semaphores.Prw()) {}
+      }
+      this.semaphores.count.setValue(this.semaphores.count.getValue() + 1);
+      this.semaphores.Vmutex();
+      this.semaphores.Vw();
+      console.log(`Thread ${this.rank.getValue()} is reading.`);
+      while (!this.semaphores.Pmutex()) {}
+      this.semaphores.count.setValue(this.semaphores.count.getValue() - 1);
+      if (this.semaphores.count.getValue() === 0) {
+        this.semaphores.Vrw();
+      }
+      this.semaphores.Vmutex();
+    }
   }
 }
 
 class Writer implements Runnable {
   public semaphores: Semaphores;
+
+  public rank = new SharedNumber();
+
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "Writer";
-  public rank = new SharedNumber(rank);
+  public className: string = 'Writer';
 
   constructor(semaphores: Semaphores, rank: number) {
     this.semaphores = semaphores;
     this.rank.setValue(rank);
   }
 
-  public run(): void {
-    // implementation
+  run(): void {
+    while (true) {
+      while (!this.semaphores.Pw()) {}
+      while (!this.semaphores.Prw()) {}
+      console.log(`Thread ${this.rank.getValue()} is writing.`);
+      this.semaphores.Vrw();
+      this.semaphores.Vw();
+    }
   }
 }
 

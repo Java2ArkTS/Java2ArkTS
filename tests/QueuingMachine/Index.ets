@@ -1,11 +1,24 @@
-import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
+import {
+  SynStart,
+  SynEnd,
+  wait,
+  notify,
+  SharedBoolean,
+  SharedString,
+  SharedNumber,
+  Syc,
+  isMainThread,
+  addFunc,
+  Runnable,
+  Thread,
+} from './ThreadBridge';
 
 export function sharedWash(runnable: Runnable) {
   let archetype: Runnable;
-  if (runnable.className == "Customer") {
-    archetype = new Customer(new Semaphores(), 0);
-  } else if (runnable.className == "Server") {
-    archetype = new Server(new Semaphores());
+  if (runnable.className === 'Customer') {
+    archetype = new Customer(new Semaphores(), 0); // Example instantiation with default values
+  } else if (runnable.className === 'Server') {
+    archetype = new Server(new Semaphores()); // Example instantiation with default values
   } else {
     archetype = new Thread();
   }
@@ -16,7 +29,7 @@ export function sharedWash(runnable: Runnable) {
 class QueuingMachine {
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "QueuingMachine";
+  public className: string = 'QueuingMachine';
 
   public static main(args: string[]): void {
     const semaphores = new Semaphores();
@@ -40,11 +53,7 @@ class Semaphores {
   public service = new SharedBoolean(false);
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "Semaphores";
-
-  constructor() {
-    this.syn = new Syc();
-  }
+  public className: string = 'Semaphores';
 
   public pEmpty(): boolean {
     SynStart(this.syn);
@@ -120,44 +129,44 @@ class Semaphores {
 }
 
 class Customer implements Runnable {
-  public semaphores: Semaphores;
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "Customer";
-  public rank = new SharedNumber(0);
+  public className: string = 'Customer';
+  public semaphores: Semaphores;
+  public rank = new SharedNumber();
 
   constructor(semaphores: Semaphores, rank: number) {
     this.semaphores = semaphores;
     this.rank.setValue(rank);
   }
 
-  public run(): void {
+  run(): void {
     while (!this.semaphores.pEmpty()) {}
     while (!this.semaphores.pMutex()) {}
-    console.log("Customer " + this.rank.getValue() + " takes a number.");
+    console.log(`Customer ${this.rank.getValue()} takes a number.`);
     this.semaphores.vMutex();
     this.semaphores.vFull();
     while (!this.semaphores.pService()) {}
-    console.log("Customer " + this.rank.getValue() + " gets service.");
+    console.log(`Customer ${this.rank.getValue()} gets service.`);
   }
 }
 
 class Server implements Runnable {
-  public semaphores: Semaphores;
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "Server";
+  public className: string = 'Server';
+  public semaphores: Semaphores;
 
   constructor(semaphores: Semaphores) {
     this.semaphores = semaphores;
   }
 
-  public run(): void {
+  run(): void {
     while (true) {
       while (!this.semaphores.pFull()) {}
       this.semaphores.vEmpty();
       this.semaphores.vService();
-      console.log("Server serves.");
+      console.log('Server serves.');
     }
   }
 }

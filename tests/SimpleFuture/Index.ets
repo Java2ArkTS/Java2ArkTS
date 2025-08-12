@@ -6,32 +6,34 @@ class SimpleFuture {
         this.isDone = false;
     }
 
-    setResult(result: string): void {
+    public setResult(result: string): void {
         this.result = result;
         this.isDone = true;
     }
 
-    get(): string | null {
+    public get(): string {
         while (!this.isDone) {
-            // Busy wait
+            // Busy-waiting
         }
-        return this.result;
+        return this.result!;
     }
 
-    checkIsDone(): boolean {
+    public isDoneMethod(): boolean {
         return this.isDone;
     }
 }
 
 const future = new SimpleFuture();
 const asyncTask = new Promise<void>((resolve) => {
-    for (let i = 0; i < 1000; i++);
-    future.setResult("Task completed");
-    resolve();
+    setTimeout(() => {
+        for (let i = 0; i < 1000; i++) {}
+        future.setResult("Task completed");
+        resolve();
+    }, 0);
 });
 
+console.log("Doing something else...");
 asyncTask.then(() => {
-    console.log("Doing something else...");
     const result = future.get();
     console.log("Result: " + result);
 });

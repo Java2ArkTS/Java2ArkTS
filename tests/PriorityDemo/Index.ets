@@ -10,34 +10,34 @@ import {
   isMainThread,
   addFunc,
   Runnable,
-  Thread
+  Thread,
 } from './ThreadBridge';
 
 export function sharedWash(runnable: Runnable) {
   let archetype: Runnable;
-  if (runnable.className == "HightPriority") {
+
+  if (runnable.className === 'HightPriority') {
     archetype = new HightPriority();
-  } else if (runnable.className == "LowPriority") {
+  } else if (runnable.className === 'LowPriority') {
     archetype = new LowPriority();
   } else {
     archetype = new Thread();
   }
+
   addFunc(runnable, archetype);
   runnable.run();
 }
 
 export class PriorityDemo {
+  public static count = new SharedNumber(0);
+
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "PriorityDemo";
-  
-  public static count = new SharedNumber(0);
-  
+  public className: string = 'PriorityDemo';
+
   public static main(args: string[]): void {
     const high: Thread = new HightPriority();
     const low: Thread = new LowPriority();
-    high.setPriority(Thread.MAX_PRIORITY);
-    low.setPriority(Thread.MIN_PRIORITY);
     low.start();
     high.start();
   }
@@ -46,18 +46,19 @@ export class PriorityDemo {
 class HightPriority extends Thread {
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "HightPriority";
-  
-  public run(): void {
+  public className: string = 'HightPriority';
+
+  run(): void {
     while (true) {
       {
-        SynStart(PriorityDemo.syn);
-        PriorityDemo.count++;
-        if (PriorityDemo.count > 1000000) {
-          console.log("HightPriority is complete!");
+        SynStart(this.syn);
+        PriorityDemo.count.setValue(PriorityDemo.count.getValue() + 1);
+        if (PriorityDemo.count.getValue() > 1000000) {
+          console.log('HightPriority is complete!');
+          SynEnd(this.syn);
           break;
         }
-        SynEnd(PriorityDemo.syn);
+        SynEnd(this.syn);
       }
     }
   }
@@ -66,23 +67,24 @@ class HightPriority extends Thread {
 class LowPriority extends Thread {
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "LowPriority";
-  
-  public run(): void {
+  public className: string = 'LowPriority';
+
+  run(): void {
     while (true) {
       {
-        SynStart(PriorityDemo.syn);
+        SynStart(this.syn);
         PriorityDemo.count.setValue(PriorityDemo.count.getValue() + 1);
         if (PriorityDemo.count.getValue() > 1000000) {
-          console.log("LowPriority is complete!");
+          console.log('LowPriority is complete!');
+          SynEnd(this.syn);
           break;
         }
-        SynEnd(PriorityDemo.syn);
+        SynEnd(this.syn);
       }
     }
   }
 }
 
 if (isMainThread()) {
-  // You can put the entry of your code here to test.
+  PriorityDemo.main([]);
 }

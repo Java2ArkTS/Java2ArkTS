@@ -1,10 +1,23 @@
-import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
+import {
+  SynStart,
+  SynEnd,
+  wait,
+  notify,
+  SharedBoolean,
+  SharedString,
+  SharedNumber,
+  Syc,
+  isMainThread,
+  addFunc,
+  Runnable,
+  Thread,
+} from './ThreadBridge';
 
 export function sharedWash(runnable: Runnable) {
   let archetype: Runnable;
-  if (runnable.className == "Producer") {
+  if (runnable.className === 'Producer') {
     archetype = new Producer(new SharedBuffer());
-  } else if (runnable.className == "Consumer") {
+  } else if (runnable.className === 'Consumer') {
     archetype = new Consumer(new SharedBuffer());
   } else {
     archetype = new Thread();
@@ -14,42 +27,43 @@ export function sharedWash(runnable: Runnable) {
 }
 
 class SharedBuffer {
-  private data: number;
-  private isEmpty = new SharedBoolean(true);
-  
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "SharedBuffer";
-  
+  public className: string = 'SharedBuffer';
+
+  private data = new SharedNumber();
+  private isEmpty = new SharedBoolean(true);
+
   public produce(newData: number): void {
     {
       SynStart(this.syn);
-      this.data = newData;
+      this.data.setValue(newData);
       this.isEmpty.setValue(false);
-      console.log("Produced: " + this.data);
+      console.log('Produced: ' + this.data.getValue());
       SynEnd(this.syn);
     }
   }
-  
+
   public consume(): number {
     {
       SynStart(this.syn);
       if (!this.isEmpty.getValue()) {
-        console.log("Consumed: " + this.data);
+        console.log('Consumed: ' + this.data.getValue());
         this.isEmpty.setValue(true);
       }
       SynEnd(this.syn);
-      return this.data;
+      return this.data.getValue();
     }
   }
 }
 
 class Producer implements Runnable {
-  private buffer: SharedBuffer;
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "Producer";
-  
+  public className: string = 'Producer';
+
+  private buffer: SharedBuffer;
+
   constructor(buffer: SharedBuffer) {
     this.buffer = buffer;
   }
@@ -62,11 +76,12 @@ class Producer implements Runnable {
 }
 
 class Consumer implements Runnable {
-  private buffer: SharedBuffer;
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "Consumer";
-  
+  public className: string = 'Consumer';
+
+  private buffer: SharedBuffer;
+
   constructor(buffer: SharedBuffer) {
     this.buffer = buffer;
   }
@@ -81,7 +96,7 @@ class Consumer implements Runnable {
 class ProducerConsumerTest {
   public syn: Syc = new Syc();
   public static staticSyn: Syc = new Syc();
-  public className: string = "ProducerConsumerTest";
+  public className: string = 'ProducerConsumerTest';
 
   static main(args: string[]): void {
     const buffer = new SharedBuffer();

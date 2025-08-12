@@ -85,13 +85,16 @@ if st.button('run'):
     last_code = code
     error_flag = 0
     for _ in range(3):
+        with open('Output.ts', 'w') as file:
+            file.write(code)
         process = subprocess.Popen(['tsc', 'Output.ts'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         stdout, stderr = process.communicate()
-        if len(stdout.decode()) == 0:
+        if len(stdout.decode().splitlines()) <= 1:
             error_flag = 0
             break
         # st.code(stdout.decode())
         error_flag = 1
+        st.code(stdout.decode())
         code = deleteZhu(ToTs().getFix(code, stdout.decode()))
         # st.code(code)
     if error_flag == 1:

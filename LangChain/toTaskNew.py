@@ -241,9 +241,11 @@ Please follow these transformation rules strictly:
 1. Initialization:
 Convert
 public count: number = 5;
+public empty: number;
 
 to
 public count = new SharedNumber(5);
+public empty = new SharedNumber();
 
 2. Accessing values:
 Replace all reads or usages of these variables in expressions with this.varName.getValue()

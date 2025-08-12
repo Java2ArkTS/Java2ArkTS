@@ -1,5 +1,5 @@
 class CompletableFutureExample {
-    private task1(): string {
+    private task1(): string | null {
         console.log("T1: 1");
         for (let i = 0; i < 1000; i++);
         console.log("T1: 2");
@@ -14,18 +14,18 @@ class CompletableFutureExample {
         for (let i = 0; i < 1000; i++);
         console.log("T2: 3");
         for (let i = 0; i < 1000; i++);
-        return " 龙井 ";
+        return " 锟斤拷锟斤拷 ";
     }
 
-    private task3(tea: string): string {
+    private task3(tea: string | undefined): string {
         console.log("T1: 1" + tea);
         console.log("T1: 2");
-        return " 上茶:" + tea;
+        return " 锟较诧拷:" + tea;
     }
 
     public static main(): void {
         const example = new CompletableFutureExample();
-        const tea: string[] = [null];
+        const tea: string[] = [""];
         const t1 = new Thread(() => {
             example.task1();
         });
@@ -52,23 +52,23 @@ class SerialRelation {
     }
 
     public static main(): void {
-        let result = SerialRelation.task1();
-        result = SerialRelation.task2(result);
-        result = SerialRelation.task3(result);
+        let result = this.task1();
+        result = this.task2(result);
+        result = this.task3(result);
     }
 }
 
 class ConvergeRelation {
     private static task1(): string {
-        const t = ConvergeRelation.getRandom(5, 10);
+        const t = this.getRandom(5, 10);
         for (let i = 0; i < 1000; i++);
-        return String(t);
+        return t.toString();
     }
 
     private static task2(): string {
-        const t = ConvergeRelation.getRandom(5, 10);
+        const t = this.getRandom(5, 10);
         for (let i = 0; i < 1000; i++);
-        return String(t);
+        return t.toString();
     }
 
     private static getRandom(i: number, j: number): number {
@@ -76,8 +76,8 @@ class ConvergeRelation {
     }
 
     public static main(): void {
-        const result1 = ConvergeRelation.task1();
-        const result2 = ConvergeRelation.task2();
+        const result1 = this.task1();
+        const result2 = this.task2();
         const result = result1 !== null ? result1 : result2;
     }
 }
@@ -87,7 +87,10 @@ class ExceptionHandler {
         try {
             return 7 / 0;
         } catch (e) {
-            return 0;
+            if (e instanceof Error) {
+                return 0;
+            }
+            throw e;
         }
     }
 
@@ -96,8 +99,20 @@ class ExceptionHandler {
     }
 
     public static main(): void {
-        let result = ExceptionHandler.task();
-        result = ExceptionHandler.task2(result);
+        let result = this.task();
+        result = this.task2(result);
+    }
+}
+
+class Thread {
+    private runnable: () => void;
+
+    constructor(runnable: () => void) {
+        this.runnable = runnable;
+    }
+
+    public start(): void {
+        setTimeout(this.runnable, 0);
     }
 }
 

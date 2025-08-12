@@ -1,82 +1,100 @@
-import { SynStart, SynEnd, wait, notify, SharedBoolean, SharedString, SharedNumber, Syc, isMainThread, addFunc, Runnable, Thread } from './ThreadBridge';
+import {
+  SynStart,
+  SynEnd,
+  wait,
+  notify,
+  SharedBoolean,
+  SharedString,
+  SharedNumber,
+  Syc,
+  isMainThread,
+  addFunc,
+  Runnable,
+  Thread,
+} from './ThreadBridge';
 
 export function sharedWash(runnable: Runnable) {
-    let archetype: Runnable;
-    if (runnable.className == "TicketBookingTask") {
-        archetype = new TicketBookingTask(new TicketCounter(), "Passenger", 1);
-    } else {
-        archetype = new Thread();
-    }
-    addFunc(runnable, archetype);
-    runnable.run();
+  let archetype: Runnable;
+
+  if (runnable.className === 'TicketBookingTask') {
+    archetype = new TicketBookingTask(new TicketCounter(), 'DefaultPassenger', 1);
+  } else {
+    archetype = new Thread();
+  }
+
+  addFunc(runnable, archetype);
+  runnable.run();
 }
 
 class TicketCounter {
+  private ticketsAvailable = new SharedNumber(20);
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = 'TicketCounter';
 
-    private ticketsAvailable = new SharedNumber(20);
-    public syn: Syc = new Syc();
-    public static staticSyn: Syc = new Syc();
-    public className: string = "TicketCounter";
-
-    public bookTicket(passengerName: string, numberOfTickets: number): void {
-        SynStart(this.syn);
-        if (numberOfTickets <= this.ticketsAvailable.getValue()) {
-            this.ticketsAvailable.setValue(this.ticketsAvailable.getValue() - numberOfTickets);
-            console.log(`${passengerName} booked ${numberOfTickets} ticket(s). Tickets left: ${this.ticketsAvailable.getValue()}`);
-        } else {
-            console.log(`Not enough tickets for ${passengerName} to book ${numberOfTickets} ticket(s). Tickets left: ${this.ticketsAvailable.getValue()}`);
-        }
-        SynEnd(this.syn);
+  public bookTicket(passengerName: string, numberOfTickets: number): void {
+    SynStart(this.syn);
+    if (numberOfTickets <= this.ticketsAvailable.getValue()) {
+      this.ticketsAvailable.setValue(this.ticketsAvailable.getValue() - numberOfTickets);
+      console.log(
+        `${passengerName} booked ${numberOfTickets} ticket(s). Tickets left: ${this.ticketsAvailable.getValue()}`
+      );
+    } else {
+      console.log(
+        `Not enough tickets for ${passengerName} to book ${numberOfTickets} ticket(s). Tickets left: ${this.ticketsAvailable.getValue()}`
+      );
     }
+    SynEnd(this.syn);
+  }
 
-    public getTicketsAvailable(): number {
-        SynStart(this.syn);
-        const available = this.ticketsAvailable.getValue();
-        SynEnd(this.syn);
-        return available;
-    }
+  public getTicketsAvailable(): number {
+    SynStart(this.syn);
+    const availableTickets = this.ticketsAvailable.getValue();
+    SynEnd(this.syn);
+    return availableTickets;
+  }
 }
 
 class TicketBookingTask implements Runnable {
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = 'TicketBookingTask';
 
-    private ticketCounter: TicketCounter;
-    private passengerName: SharedString;
-    private numberOfTickets: SharedNumber;
+  private ticketCounter: TicketCounter;
 
-    public syn: Syc = new Syc();
-    public static staticSyn: Syc = new Syc();
-    public className: string = "TicketBookingTask";
+  private passengerName = new SharedString();
 
-    constructor(ticketCounter: TicketCounter, passengerName: string, numberOfTickets: number) {
-        this.ticketCounter = ticketCounter;
-        this.passengerName = new SharedString(passengerName);
-        this.numberOfTickets = new SharedNumber(numberOfTickets);
+  private numberOfTickets = new SharedNumber();
+
+  constructor(ticketCounter: TicketCounter, passengerName: string, numberOfTickets: number) {
+    this.ticketCounter = ticketCounter;
+    this.passengerName.setValue(passengerName);
+    this.numberOfTickets.setValue(numberOfTickets);
+  }
+
+  run(): void {
+    while (true) {
+      this.ticketCounter.bookTicket(this.passengerName.getValue(), this.numberOfTickets.getValue());
     }
-
-    run(): void {
-        while (true) {
-            this.ticketCounter.bookTicket(this.passengerName.getValue(), this.numberOfTickets.getValue());
-        }
-    }
+  }
 }
 
 class TicketBookingTest3 {
+  public syn: Syc = new Syc();
+  public static staticSyn: Syc = new Syc();
+  public className: string = 'TicketBookingTest3';
 
-    public syn: Syc = new Syc();
-    public static staticSyn: Syc = new Syc();
-    public className: string = "TicketBookingTest3";
-
-    public static main(args: string[]): void {
-        const ticketCounter = new TicketCounter();
-        const thread1 = new Thread(new TicketBookingTask(ticketCounter, "Passenger1", 5));
-        const thread2 = new Thread(new TicketBookingTask(ticketCounter, "Passenger2", 7));
-        const thread3 = new Thread(new TicketBookingTask(ticketCounter, "Passenger3", 4));
-        const thread4 = new Thread(new TicketBookingTask(ticketCounter, "Passenger4", 6));
-        thread1.start();
-        thread2.start();
-        thread3.start();
-        thread4.start();
-    }
+  public static main(args: string[]): void {
+    const ticketCounter = new TicketCounter();
+    const thread1 = new Thread(new TicketBookingTask(ticketCounter, 'Passenger1', 5));
+    const thread2 = new Thread(new TicketBookingTask(ticketCounter, 'Passenger2', 7));
+    const thread3 = new Thread(new TicketBookingTask(ticketCounter, 'Passenger3', 4));
+    const thread4 = new Thread(new TicketBookingTask(ticketCounter, 'Passenger4', 6));
+    thread1.start();
+    thread2.start();
+    thread3.start();
+    thread4.start();
+  }
 }
 
 if (isMainThread()) {
